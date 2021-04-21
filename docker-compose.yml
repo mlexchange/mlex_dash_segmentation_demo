@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+    producer:
+        container_name: "prod"
+        build: 
+            context: 'producer'
+        environment:
+            AMQP_URL: 'amqp://rabbit?connection_attempts=5&retry_delay=5'
+        depends_on:
+            - "rabbit"
+        volumes:
+            - '${PWD}:/work/app'
+    rabbit:
+        image: 'rabbitmq:latest'
+        ports:
+            - "5672:5672"
+
+    consumer:
+        container_name: "cons"
+        build:
+            context: "consumer"
+            #allow this container to launch sister containers
+        volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock"
+
+        environment:
+            AMQP_URL: 'amqp://guest:guest@rabbit'
+        depends_on:
+            - "rabbit"
+              #        #    ml:
+        #        build: './ml_backend/docker/'
+        #        ulimits:
+        #            memlock: -1
+        #            stack: 67108864
+        #        volumes:
+        #            - '${PWD}/ml_backend:/work/'
+        #        ports:
+        #            - '8006:8000'
+        #        shm_size: '1g'
+        #        runtime: nvidia
+        #        environment:
+        #            NVIDIA_VISIBLE_DEVICES: all
+        #            NVIDIA_DRIVER_CAPABILITIES: all
+        #        deploy:
+        #            resources:
+        #                reservations:
+        #                    devices:
+        #                        - capabilities:
+        #                            - gpu
+        #
