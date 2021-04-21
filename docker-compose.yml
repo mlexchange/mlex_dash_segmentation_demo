@@ -1,10 +1,12 @@
 version: '3'
 
 services:
-    producer:
-        container_name: "prod"
+    front-end:
+        container_name: "fronty"
         build: 
-            context: 'producer'
+            context: 'dash-seg'
+            dockerfile: 'docker/Dockerfile'
+        command: 'sleep 60'
         environment:
             AMQP_URL: 'amqp://rabbit?connection_attempts=5&retry_delay=5'
         depends_on:
