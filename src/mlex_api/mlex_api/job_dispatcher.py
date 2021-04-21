@@ -1,6 +1,7 @@
 #job_dispatcher.py
 
 from abc import ABCMeta, abstractmethod
+import json
 
 
 class JobInterface:
@@ -12,7 +13,7 @@ class JobInterface:
         self.code_to_executre_uri = code_to_execture_uri
         super().__init__()
 
-    @abstactmethod
+    @abstractmethod
     def createJob():
         """
         Create a Job object (assuming that we are within a kubernetes environment, Job is a k-Job)
@@ -60,3 +61,32 @@ class JobInterface:
         pass
     
         
+class simpleJob():
+    """ Simple job made for segmentation demo.
+    Create a job and then deploy it as part of a simple docker-compose service
+    """
+    def __init__(self, 
+            job_description,
+            deploy_location,
+            docker_uri,
+            docker_cmd,
+            input_location,
+            output_location,
+            ):
+        self.job_description = job_description
+        self.deploy_location = deploy_location
+        self.docker_uri = docker_uri
+        self.docker_cmd = docker_cmd
+        self.input_location = input_location
+        self.output_location = output_location
+
+        # create json payload
+        payload = {'docker_uri':self.docker_uri,
+                'docker_cmd':self.docker_cmd,
+                'input_location':self.input_location,
+                'output_location':self.output_location,
+                }
+        self.js_payload = json.dumps(payload)
+
+    def launchJob():
+        pass

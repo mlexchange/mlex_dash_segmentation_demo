@@ -6,6 +6,7 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import plot_common
 import json
+import pathlib
 #from shapes_to_segmentations import (
 #    compute_segmentations,
 #    blend_image_and_classified_regions_pil,
@@ -29,8 +30,7 @@ import random
 from dash_slicer import VolumeSlicer
 import imageio
 import numpy as np
-
-
+from mlex_api.mlex_api import job_dispatcher
 ##### TEMPLATE MODULES
 import templates
 
@@ -48,6 +48,8 @@ DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 class_label_colormap = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"]
 class_labels = list(range(NUM_LABEL_CLASSES))
 SAMPLE_DATA = 'data/bead_pack.tif'
+MASK_OUTPUT_DIR = pathlib.Path('data/masks')
+IM_OUTPUT_DIR = pathlib.Path('data/images')
 features_dict = {}
 #### HELPER UTILS
 def dcm_to_np(dir_path):
@@ -95,8 +97,8 @@ def make_default_figure(image_index, shapes=[],stroke_color = '#ff4f00'):
             {
                 'dragmode' : 'drawopenpath',
                 'shapes' : shapes,
-                'height': 800,
-                'newshape.line.color' :stroke_color
+                'newshape.line.color' :stroke_color,
+                'margin': {'l':0, 'r':0, 't':0, 'b':0},
                 }
         )
     fig.update_xaxes(
@@ -137,34 +139,18 @@ segmentation = [
         children=[
             dbc.CardHeader("Viewer"),
             dbc.CardBody(
-                [
-                    # Wrap dcc.Loading in a div to force transparency when loading
-                    html.Div(
-                        id="transparent-loader-wrapper",
-              #          children=[
-              #              dcc.Loading(
-              #                  id="segmentations-loading",
-              #                  type="circle",
-                                     #Graph
-                                    children=[ 
-                                            dcc.Graph(
-                                        id="graph",
-                                        figure=make_default_figure(0),
-                                        config={
-                                            "modeBarButtonsToAdd": [
-                                                "drawrect",
-                                                "drawopenpath",
-                                                "eraseshape",
-                                            ]
-                                        },
-                                    ),
-                                    #),
-                                ],
-                            )
-                        ],
+                        dcc.Graph(
+                        id="graph",
+                        figure=make_default_figure(0),
+                            config={
+                                "modeBarButtonsToAdd": [
+                                "drawrect",
+                                "drawopenpath",
+                                "eraseshape",
+                                ]
+                            },
+                        ),
                     ),
-                ]
-            ),
             dbc.CardFooter(
                 [
                     # Download links
@@ -214,6 +200,8 @@ segmentation = [
                     html.A(id="download-image", download="classified-image.png",),
                 ]
             ),
+        ]
+        )
         ]
 
 ### REACTIVE COMPONENTS FOR DISPLAY FIGURE ###
@@ -337,11 +325,25 @@ sidebar_label = [
                                 children=[]
                                 ),
 
+                            dbc.FormGroup(
+                                [
+                                    dbc.Label('Choose Deployment Location', className = 'mr-2'),
+                                    dcc.Dropdown(id='deploy-dropdown',
+                                        options = [
+                                            {'label': 'Vaughan (GPU)', 'value': 'vaughan'},
+                                            {'label': 'Local (cpu)', 'value': 'local'},
+                                            {'label': 'NERSC', 'value':'nersc'},
+                                            {'label': 'Lab IT Cluster', 'value':'labit'},
+                                            ],
+                                        style={'min-width':'250px'},
+                                        ),
                             dbc.Button(
                                     "Train Segmenter",
                                     id="train-seg",
                                     outline=True,
                                     ),
+                                ],
+                            ),
 
                             dcc.Checklist(
                                 id="show-segmentation",
@@ -459,6 +461,81 @@ def additional_seg_features(seg_dropdown_value):
 
 
 ### REACTIVE FOR SEGMENTATION ###
+#### HELPER COLLECTION OF FUNCTIONS PREPARING SEGMENTATION ####
+class mask_tasks():
+    """
+    example use:
+    Given a dictionary of masks (key is index of image masked, value is list of svg path objects),
+    call:
+        f_names = mask_tasks.create_masks(mask_dict), which saves numpy .dat files of the masks and returns
+        the file names to you
+    """
+
+    @staticmethod #doesn't need cls as first arg, use staticmethod
+    def _path_to_indices(path): #_ indicates this is a private method
+        """From SVG path to numpy array of coordinates, each row being a (row, col) point
+        """
+        indices_str = [
+	    el.replace("M", "").replace("Z", "").split(",") for el in path.split("L")
+	]
+        return np.rint(np.array(indices_str, dtype=float)).astype(np.int)
+
+
+    @classmethod
+    def _path_to_mask(self, path,class_n, shape):
+        """From SVG path to a boolean array where all pixels enclosed by the path
+        are True, and the other pixels are False.
+
+        Args:
+            path, str: svg string
+            class_n, int: the labeled class of the path
+            shape, (int, int): the shape of the labeled image
+        """
+        class_n = int(class_n)
+        cols, rows = self._path_to_indices(path).T # a series of vertices, need to translate into points
+        # draw.line returns rr, cc
+        lines = [draw.line_aa(r0,c0,r1,c1) for r0,c0,r1,c1 in zip(rows[:-1], cols[:-1], rows[1:], cols[1:])]
+
+        #rr, cc = draw.polygon_perimeter(rows, cols) # change to draw.polygon to have filled holes
+        mask = np.zeros(shape, dtype=int)
+        # the plus one is because zero is taken as an unlabled pixel, so
+        # all classes need to be shifted up by one for the labelling.
+        for line in lines:
+            mask[line[0], line[1]] = class_n+1
+        print(class_n)
+        # don't want to have filled paths, just draw mask where the stroke is
+        # so commented out below
+#        mask = ndimage.binary_fill_holes(mask)
+        return mask
+    
+    @classmethod
+    def create_save_masks(self, masks_data: dict):
+        """
+        Create a mask file for each image in an image stack
+        Args:
+            masks_data: dict{image_index: [plotly_svg_shapes_for_index]}
+        
+        Return:
+            filenames of saved mask files (.dat files, with pixels labelled as class)
+        """
+        mask_names = []
+        for key in masks_data:
+            shapes = masks_data[key]
+            masks = np.zeros(IMAGES_SHAPE)
+            masks_image = np.ones( (*IMAGES_SHAPE, 3), dtype=np.uint8) ## assume rgb data
+
+            for s in shapes:
+                c_mask = self._path_to_mask(s['path'], color_to_class(s['line']['color']), IMAGES_SHAPE)
+
+                # update mask to include new shape
+                masks[c_mask > 0] = c_mask[c_mask > 0]
+
+            mask_f_name = str(MASK_OUTPUT_DIR / 'n-{}'.format(key))
+            sav_return = np.savetxt(mask_f_name, masks)
+            mask_names.append(mask_f_name)
+            return mask_names
+
+    
 @app.callback(
         [
             Output('debug-print','children'),
@@ -478,88 +555,38 @@ def train_segmentation(train_seg_n_clicks, masks_data):
     the random forest that this is based on expects that 0 is an unlabelled pixel, so the user labels have to
     be adjusted to take this into account.
 
-    2. Any model dependent feature extraction has to be done
+    2. Save mask and image files into data directory that the ml_worker node has access to
 
-    3. Save mask and image files into data directory that the ml_worker node has access to
+    3. Create a list of job messages (uri::segmentation_docker_exec(train/deploy), uri::filename_image, uri::mask)
 
-    4. Create a list of job messages (uri::segmentation_docker_exec(train/deploy), uri::filename_image, uri::mask)
-
-    5. Send job messages into job queue
+    4. Send job messages into job queue
     """
     # save tiff series of masks (same index as above)
     # code from https://dash.plotly.com/annotations
-    def path_to_indices(path):
-        """From SVG path to numpy array of coordinates, each row being a (row, col) point
-        """
-        indices_str = [
-	    el.replace("M", "").replace("Z", "").split(",") for el in path.split("L")
-	]
-        return np.rint(np.array(indices_str, dtype=float)).astype(np.int)
-
-
-    def path_to_mask(path,class_n, shape):
-        """From SVG path to a boolean array where all pixels enclosed by the path
-        are True, and the other pixels are False.
-
-        Args:
-            path, str: svg string
-            class_n, int: the labeled class of the path
-            shape, (int, int): the shape of the labeled image
-        """
-        class_n = int(class_n)
-        cols, rows = path_to_indices(path).T # a series of vertices, need to translate into points
-        # draw.line returns rr, cc
-        lines = [draw.line_aa(r0,c0,r1,c1) for r0,c0,r1,c1 in zip(rows[:-1], cols[:-1], rows[1:], cols[1:])]
-
-        #rr, cc = draw.polygon_perimeter(rows, cols) # change to draw.polygon to have filled holes
-        mask = np.zeros(shape, dtype=int)
-        # the plus one is because zero is taken as an unlabled pixel, so
-        # all classes need to be shifted up by one for the labelling.
-        for line in lines:
-            mask[line[0], line[1]] = class_n+1
-        print(class_n)
-        # don't want to have filled paths, just draw mask where the stroke is
-        # so commented out below
-#        mask = ndimage.binary_fill_holes(mask)
-        return mask
-
+    #### Create masks from the svg shape data stored in the hidden div ####
     image_index_with_mask = list(masks_data.keys())
-   # print(masks_data)
     debug = ''
-    for key in masks_data:
-        shapes = masks_data[key]
-        print(shapes[0])
-        print(shapes[0]['line']['color'])
-        print(shapes[0]['path'])
-       # masks = [ ( color_to_class(s['line']['color']),
-       #     path_to_mask(s['path'], color_to_class(s['line']['color']), IMAGES_SHAPE) ) for s in shapes]
-        masks = np.zeros(IMAGES_SHAPE)
-        masks_image = np.ones((*IMAGES_SHAPE, 3), dtype=np.uint8) ##assume rgb data
-        for s in shapes:
-            c_mask = path_to_mask(s['path'], color_to_class(s['line']['color']), IMAGES_SHAPE) 
-            # now update mask to include this new shape mask
-            masks[c_mask > 0] = c_mask[c_mask >0]
-
-            #get rgb color for class from hex:
-            hex_color = s['line']['color']
-            rgb_color = PIL.ImageColor.getcolor(hex_color, 'RGB')
-
-            test_image = np.array([[rgb_color, rgb_color, rgb_color]], dtype=np.uint8)
-            plt.imsave('test.png', masks_image)
-            #masks_image[c_mask>0] = rgb_color
-
-
-        
-        #im = PIL.Image.fromarray(masks_image)
-        sav_return = np.savetxt( 'data/masks/n-{}'.format(key), masks)
-        print(masks_image)
-        #im.save('test.png')
-    debug = 'good'
-    return [debug]
+    mask_file_names = mask_tasks.create_save_masks(masks_data)
+    print(mask_file_names)
 
     # save tiff series of images (only those that have at least one mask associated with them)
+    for im_index in image_index_with_mask:
+        imageio.imsave(IM_OUTPUT_DIR / '{}_bead_pack.tif'.format(im_index), np_volume[int(im_index)])
+
+    # call ml_api to dispatch job to workers (blocking for now, future will probably have a dispatcher server to handle setting up the job queue, etc)
+    print(job_dispatcher.__dir__())
+    seg_job = job_dispatcher.simpleJob('segmentation job',
+            deploy_location = 'local-vaughan',
+            docker_uri = 'hello-world',
+            docker_cmd = '',
+            input_location = 'data/input',
+            output_location = 'data/output'
+            )
+    #ml_api.j.createJob()
+    #ml_api.job_dispatcher.vaughan.launchJob()
+    return [seg_job.js_payload]
+
         
-    # call ml_api to dispatch job to workers (we'll do it blocking for now, but in the future the plan is
     # to have ml_api sitting as a fastapi server, PUT: segmentation job, ML_API: OKAY! ML_API: figures out 
     # the specifics of the job and dispatches them to the working queue. For now, we'll just call ml_api as a 
     # library function and the result will be blocking.
@@ -619,7 +646,28 @@ meta = [
 #        ),
 #    ) # end
 #
+# Iris bar figure
+df = px.data.iris()
 
+def drawFigure():
+    return  html.Div([
+        dbc.Card(
+            dbc.CardBody([
+                dcc.Graph(
+                    figure=px.bar(
+                        df, x="sepal_width", y="sepal_length", color="species"
+                    ).update_layout(
+                        template='plotly_dark',
+                        plot_bgcolor= 'rgba(0, 0, 0, 0)',
+                        paper_bgcolor= 'rgba(0, 0, 0, 0)',
+                    ),
+                    config={
+                        'displayModeBar': False
+                    }
+                ) 
+            ])
+        ),  
+    ])
 ##### DEFINE LAYOUT ####
 app.layout = html.Div (
         [
