@@ -134,10 +134,11 @@ if __name__ == '__main__':
     # get dir, and feature extract all images
 
     ### GLOBAL VARIABLES ###
-    OUTPUT_FEATURE_DIR = pathlib.Path('/data/features')
     parser = argparse.ArgumentParser()
     parser.add_argument('image_dir', help='image filepath')
+    parser.add_argument('feature_dir', help='output filepath')
     args = parser.parse_args()
+    OUTPUT_FEATURE_DIR = pathlib.Path(args.feature_dir)
     images_path = pathlib.Path(args.image_dir)
 
     ###INPUT_ARGS_HARDCORE
