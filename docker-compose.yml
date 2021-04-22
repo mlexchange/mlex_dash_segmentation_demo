@@ -4,15 +4,19 @@ services:
     front-end:
         container_name: "fronty"
         build: 
-            context: 'dash-seg'
+            context: 'dash-seg/'
             dockerfile: 'docker/Dockerfile'
-        command: 'sleep 60'
+        command: 'python src/napp.py'
+            #command: 'sleep 60000'
         environment:
             AMQP_URL: 'amqp://rabbit?connection_attempts=5&retry_delay=5'
         depends_on:
             - "rabbit"
         volumes:
-            - '${PWD}:/work/app'
+            - ./dash-seg/data:/app/work/data
+            - ./dash-seg/src:/app/work/src
+        ports:
+            - '8050:8050'
     rabbit:
         image: 'rabbitmq:latest'
         ports:
@@ -30,6 +34,10 @@ services:
             AMQP_URL: 'amqp://guest:guest@rabbit'
         depends_on:
             - "rabbit"
+        
+
+
+        
               #        #    ml:
         #        build: './ml_backend/docker/'
         #        ulimits:

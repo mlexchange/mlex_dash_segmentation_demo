@@ -22,3 +22,4 @@ gunicorn
 dash-vtk
 itk==5.2rc1
 dash-slicer>=0.2.0
+pika

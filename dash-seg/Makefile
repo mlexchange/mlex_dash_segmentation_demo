@@ -17,7 +17,7 @@ test:
 	echo ${PROJECT}:${TAG}
 
 build_docker: 
-	docker build -t ${IMG_WEB_SVC} ./docker
+	docker build -t ${IMG_WEB_SVC} -f docker/Dockerfile .
 	
 
 run_docker:

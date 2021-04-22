@@ -4,7 +4,8 @@
 FROM python:3.7.10
 MAINTAINER ADAM GREEN
 
-COPY requirements.txt requirements.txt
+RUN ls
+COPY docker/requirements.txt requirements.txt
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -22,6 +23,7 @@ EXPOSE 8000
 
 WORKDIR /app/work
 ENV HOME /app/work
+COPY src src
 ENV PYTHONUNBUFFERED=1
 #RUN export PATH=$PATH:/app/src/data && echo "export PATH=$PATH" >> /etc/bash.bashrc
 

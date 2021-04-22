@@ -2,6 +2,7 @@
 
 from abc import ABCMeta, abstractmethod
 import json
+import pika
 
 
 class JobInterface:
@@ -88,5 +89,24 @@ class simpleJob():
                 }
         self.js_payload = json.dumps(payload)
 
-    def launchJob():
+
+    def launchJob(self,amqp_url):
+        """
+        Send the job to a simple amqp message queue
+        """
+        params = pika.URLParameters(amqp_url)
+        connection = pika.BlockingConnection(params)
+        channel = connection.channel()
+        channel.queue_declare(queue='ml_tasks', durable=True)
+
+        channel.basic_publish(
+                exchange='',
+                routing_key='ml_tasks',
+                body=self.js_payload,
+                properties=pika.BasicProperties(
+                    delivery_mode=2,
+                    )
+                )
+        print('send job to queue')
+        connection.close()
         pass

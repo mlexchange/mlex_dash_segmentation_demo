@@ -7,6 +7,7 @@ import dash_bootstrap_components as dbc
 import plot_common
 import json
 import pathlib
+import os
 #from shapes_to_segmentations import (
 #    compute_segmentations,
 #    blend_image_and_classified_regions_pil,
@@ -51,6 +52,8 @@ SAMPLE_DATA = 'data/bead_pack.tif'
 MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
 features_dict = {}
+# run if in docker compose service
+AMQP_URL = os.environ['AMQP_URL']
 #### HELPER UTILS
 def dcm_to_np(dir_path):
     np_volume = imageio.volread(dir_path)
@@ -582,6 +585,7 @@ def train_segmentation(train_seg_n_clicks, masks_data):
             input_location = 'data/input',
             output_location = 'data/output'
             )
+    seg_job.launchJob(AMQP_URL) 
     #ml_api.j.createJob()
     #ml_api.job_dispatcher.vaughan.launchJob()
     return [seg_job.js_payload]

@@ -21,4 +21,7 @@ RUN apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io
 #install docker
 
 
-CMD ["sleep", "1d"]
+COPY ml_worker.sh ml_worker.sh
+#CMD ["sleep", "1d"]
+CMD bash ml_worker.sh
+#CMD ["bash", "ml_worker.sh"]
