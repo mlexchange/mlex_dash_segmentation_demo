@@ -4,7 +4,7 @@ import argparse
 from skimage import filters, feature
 import pathlib
 
-import PIL
+import PIL.Image
 from joblib import Parallel, delayed
 
 
@@ -131,25 +131,29 @@ def multiscale_basic_features(
     return np.array(features, dtype=np.float32)
 
 if __name__ == '__main__':
-    # get filename to be featured extracted
+    # get dir, and feature extract all images
+
+    ### GLOBAL VARIABLES ###
+    OUTPUT_FEATURE_DIR = pathlib.Path('/data/features')
     parser = argparse.ArgumentParser()
-    parser.add_argument('image_f', help='image filepath')
+    parser.add_argument('image_dir', help='image filepath')
     args = parser.parse_args()
-    image_path = pathlib.Path(args.image_f)
-    image_name_root = image_path.name.strip(image_path.suffix)
+    images_path = pathlib.Path(args.image_dir)
 
     ###INPUT_ARGS_HARDCORE
     feature_list = {'intensity': True,
                     'edges': False,
                     'texture': False}
 
-    image = img_to_ubyte_array(image_path)
-    features = multiscale_basic_features(
-            image,
-            multichannel=False,
-            intensity=feature_list['intensity'],
-            edges=feature_list['edges'],
-            texture=feature_list['texture']
-            )
-    num_features = features.shape[0]
-    np.savetxt('sample-data/features/'+image_name_root+'.feature', features.reshape(num_features,-1))
+    for im in images_path.glob('*.tif'):
+        im_name_root = im.name.strip(im.suffix)
+        image = img_to_ubyte_array(im)
+        features = multiscale_basic_features(
+                image,
+                multichannel=False,
+                intensity=feature_list['intensity'],
+                edges=feature_list['edges'],
+                texture=feature_list['texture']
+                )
+        num_features = features.shape[0]
+        np.savetxt(str(OUTPUT_FEATURE_DIR / im_name_root)+'.feature', features.reshape(num_features,-1))

@@ -29,11 +29,19 @@ services:
             #allow this container to launch sister containers
         volumes:
             - "/var/run/docker.sock:/var/run/docker.sock"
-
+              #- "./dash-seg/data:/data"
+            - "data-m:/data"
         environment:
             AMQP_URL: 'amqp://guest:guest@rabbit'
         depends_on:
             - "rabbit"
+volumes:
+    data-m:
+        driver: local
+        driver_opts:
+            type: none
+            device: ${PWD}/dash-seg/data/
+            o: bind
         
 
 
