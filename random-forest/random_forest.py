@@ -5,6 +5,7 @@ import glob
 import skimage
 import numpy as np
 import PIL.Image
+from sklearn.externals import joblib
 
 """ Train a random forest classifier
     Input: design matrix, labelled masks
@@ -61,9 +62,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('mask_dir', help='path to mask directory')
     parser.add_argument('feature_dir', help = 'path to feature directory')
+    parser.add_argument('model_dir', help = 'path to model (output) directory')
 
     args = parser.parse_args()
 
+    model_dir = pathlib.Path(args.model_dir)
     ### READ IN FEATURE LIST ###
     feature_glob = pathlib.Path(args.feature_dir)
 
@@ -85,3 +88,6 @@ if __name__ == "__main__":
     clf = RandomForestClassifier(n_estimators=50, n_jobs=-1, max_depth=8, max_samples=0.05)
 
     clf.fit(train_features,train_mask)
+    model_output_name = model_dir / 'random-forest.model'
+    joblib.dump(clf, model_output_name)
+
