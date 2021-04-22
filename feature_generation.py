@@ -4,7 +4,7 @@ import argparse
 from skimage import filters, feature
 import pathlib
 
-import PIL
+import PIL.Image
 from joblib import Parallel, delayed
 
 
