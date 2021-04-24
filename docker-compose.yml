@@ -1,5 +1,6 @@
 version: '3'
 
+#env file is ./.env
 services:
     front-end:
         container_name: "fronty"
@@ -29,19 +30,22 @@ services:
             #allow this container to launch sister containers
         volumes:
             - "/var/run/docker.sock:/var/run/docker.sock"
+            - "./consumer:/app"
               #- "./dash-seg/data:/data"
             - "data-m:/data"
         environment:
-            AMQP_URL: 'amqp://guest:guest@rabbit'
+            AMQP_URL: 'amqp://rabbit?connection_attempts=5&retry_delay=5'
+            #AMQP_URL: 'amqp://guest:guest@rabbit'
+            DATA_DIR: "${COMPOSE_PROJECT_NAME}_data-m"
         depends_on:
             - "rabbit"
-volumes:
+volumes: #create named dir and link it to the data folder, so all services can use
     data-m:
         driver: local
         driver_opts:
-            type: none
-            device: ${PWD}/dash-seg/data/
-            o: bind
+            type: "none"
+            device: "${PWD}/dash-seg/data/"
+            o: "bind"
         
 
 

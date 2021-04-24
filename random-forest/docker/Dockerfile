@@ -30,6 +30,8 @@ ENV PYTHONUNBUFFERED=1
 
 COPY feature_generation.py feature_generation.py
 COPY random_forest.py random_forest.py
-CMD ["bash"]
+COPY segment.py segment.py
+#CMD ["bash"]
+CMD ["echo", "running random forest"]
 #CMD ["uvicorn", "ml:app", "--host", "0.0.0.0", "--reload"]
 #CMD ["python", "app.py"]

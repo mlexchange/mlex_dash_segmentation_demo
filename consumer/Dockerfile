@@ -1,4 +1,5 @@
-from ubuntu
+from ubuntu:20.04
+MAINTAINER ADAM GREEN
 
 
 RUN apt-get update && apt-get install -y curl\
@@ -18,10 +19,16 @@ RUN echo \
 
 RUN apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io
 
-#install docker
-
+RUN apt-get install -y python3-pip\
+    python3
+COPY requirements.txt requirements.txt
+RUN pip3 install --upgrade pip &&\
+    pip3 install -r requirements.txt 
 
 COPY ml_worker.sh ml_worker.sh
-#CMD ["sleep", "1d"]
-CMD bash ml_worker.sh
+COPY ml_worker.py ml_worker.py
+ENV PYTHONUNBUFFERED=1
+CMD ["sleep", "1d"]
+
+#CMD python3 ml_worker.py
 #CMD ["bash", "ml_worker.sh"]

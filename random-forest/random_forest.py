@@ -5,7 +5,7 @@ import glob
 import skimage
 import numpy as np
 import PIL.Image
-from sklearn.externals import joblib
+import joblib
 
 """ Train a random forest classifier
     Input: design matrix, labelled masks
@@ -90,4 +90,6 @@ if __name__ == "__main__":
     clf.fit(train_features,train_mask)
     model_output_name = model_dir / 'random-forest.model'
     joblib.dump(clf, model_output_name)
+    print('trained random forest: {}'.format(model_output_name))
+    
 

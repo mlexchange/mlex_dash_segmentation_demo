@@ -157,4 +157,6 @@ if __name__ == '__main__':
                 texture=feature_list['texture']
                 )
         num_features = features.shape[0]
-        np.savetxt(str(OUTPUT_FEATURE_DIR / im_name_root)+'.feature', features.reshape(num_features,-1))
+        feature_out_name = str(OUTPUT_FEATURE_DIR / im_name_root)+'.feature'
+        np.savetxt(feature_out_name, features.reshape(num_features,-1))
+        print('features generated for: {}'.format(feature_out_name))

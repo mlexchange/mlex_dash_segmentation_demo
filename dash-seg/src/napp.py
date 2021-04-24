@@ -1,6 +1,7 @@
 import plotly.express as px
 import dash
 from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
@@ -15,6 +16,7 @@ import os
 from skimage import io as skio
 from skimage.transform import rescale
 from skimage import draw
+import skimage
 #from trainable_segmentation import multiscale_basic_features
 import io
 import base64
@@ -54,6 +56,14 @@ IM_OUTPUT_DIR = pathlib.Path('data/images')
 features_dict = {}
 # run if in docker compose service
 AMQP_URL = os.environ['AMQP_URL']
+
+# hardcoded model database as dict
+print('loaded database')
+MODEL_DATABASE = {"Random Forest":"aasgreen/random-forest-dc",
+                "MSD": "rings/msdnetwork-notebook",
+                "":"",
+                }
+
 #### HELPER UTILS
 def dcm_to_np(dir_path):
     np_volume = imageio.volread(dir_path)
@@ -69,6 +79,33 @@ def color_to_class(c):
 def shapes_to_key(shapes):
     return json.dumps(shapes)
 
+
+def label_to_colors(
+img, colormap=px.colors.qualitative.Light24, alpha=128, color_class_offset=0):
+    """
+    Take MxN matrix containing integers representing labels and return an MxNx4
+    matrix where each label has been replaced by a color looked up in colormap.
+    colormap entries must be strings like plotly.express style colormaps.
+    alpha is the value of the 4th channel
+    color_class_offset allows adding a value to the color class index to force
+    use of a particular range of colors in the colormap. This is useful for
+    example if 0 means 'no class' but we want the color of class 1 to be
+    colormap[0].
+    """
+    def fromhex(n):
+        return int(n, base=16)
+    colormap = [
+        tuple([fromhex(h[s : s + 2]) for s in range(0, len(h), 2)])
+        for h in [c.replace("#", "") for c in colormap]
+    ]
+    cimg = np.zeros(img.shape[:2] + (3,), dtype="uint8")
+    minc = np.min(img)
+    maxc = np.max(img)
+    for c in range(int(minc), int(maxc) + 1):
+        cimg[img == c] = colormap[(c + color_class_offset) % len(colormap)]
+    return np.concatenate(
+        (cimg, alpha * np.ones(img.shape[:2] + (1,), dtype="uint8")), axis=2
+    )
 
 def store_shapes_seg_pair(d, key, seg, remove_old=True):
     """
@@ -127,6 +164,7 @@ app.title = "MLExchange Labeling | Image Segmentation"
 
 #volume_state = dcm_to_volume(SAMPLE_DATA)
 np_volume = dcm_to_np(SAMPLE_DATA)
+CLASSIFIED_VOLUME = np.zeros(np_volume.shape)
 N_IMAGES = np_volume.shape[0]
 IMAGES_SHAPE = (np_volume.shape[1], np_volume.shape[2])
 
@@ -217,11 +255,12 @@ segmentation = [
             Input("image-slider", "value"),
             Input({'type': "label-class-button", "index":dash.dependencies.ALL},
                 "n_clicks_timestamp",
-                )
+                ),
+            Input('show-segmentation', 'value'),
         ],
-        [State("masks", "data")],
+        [State("masks", "data"), State('classified-image-store', 'data')],
         )
-def update_figure(image_slider_value, any_label_class_button_value, masks_data):
+def update_figure(image_slider_value, any_label_class_button_value,show_segmentation_value, masks_data, classified_image_store_data):
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     
@@ -244,6 +283,42 @@ def update_figure(image_slider_value, any_label_class_button_value, masks_data):
             shapes,
             stroke_color=class_to_color(label_class_value)
             )
+    if ("Show segmentation" in show_segmentation_value):
+        print('showing seg')
+
+        # read in image (too large to store all images in browser cache)
+        try:
+            semi = imageio.imread('data/output/{}-classified.tif'.format(image_slider_value))
+        except:
+            print('slice not yet segmented')
+        semi = label_to_colors(semi)
+        print(semi)
+        def img_array_to_pil_image(ia):
+            ia = skimage.util.img_as_ubyte(ia)
+            img = PIL.Image.fromarray(ia)
+            return img
+
+
+        semipng = img_array_to_pil_image(semi)
+        semipng.save('data/printcolor.png')
+        print(semipng)
+        width, height = (semi.shape[0],semi.shape[1])
+        im.add_layout_image(
+                dict(
+                    source=semipng,
+                    xref="x",
+                    yref="y",
+                    x=0,
+                    y=0,
+                    sizex=width,
+                    sizey=height,
+                    sizing="contain",
+                    opacity=0.5,
+                    layer="above",
+                )
+            )
+        im.update_layout(template='plotly_white')
+        
 
     return [im,image_slider_value]
 
@@ -317,9 +392,12 @@ sidebar_label = [
                                     dbc.Label('Choose Segmentation Model', className = 'mr-2'),
                                     dcc.Dropdown(id='seg-dropdown',
                                         options=[
-                                            {'label': 'MSD', 'value': 'msd'},
-                                            {'label' : 'RandomForest', 'value': 'random_forest'},
-                                            ],
+                                        {"label": entry, "value": entry} for entry in MODEL_DATABASE],
+
+                                        #options=[
+                                        #    {'label': 'MSD', 'value': 'msd'},
+                                        #    {'label' : 'RandomForest', 'value': 'random_forest'},
+                                        #    ],
                                         style={'min-width':'250px'},
                                         ),
                                     ],
@@ -345,6 +423,12 @@ sidebar_label = [
                                     id="train-seg",
                                     outline=True,
                                     ),
+                            dbc.Button(
+                                    "Deploy Segmenter",
+                                    id="compute-seg",
+                                    outline=True,
+                                    ),
+
                                 ],
                             ),
 
@@ -453,9 +537,9 @@ msd_params = [
         ]
         )
 def additional_seg_features(seg_dropdown_value):
-    if seg_dropdown_value == 'random_forest':
+    if seg_dropdown_value == 'Random Forest':
         return [random_forest_params]
-    elif seg_dropdown_value == 'msd':
+    elif seg_dropdown_value == 'MSD':
         return [msd_params]
     else:
         return ['']
@@ -548,9 +632,10 @@ class mask_tasks():
         ],
         [
             State('masks', 'data'),
+            State('seg-dropdown', 'value')
             ]
         )
-def train_segmentation(train_seg_n_clicks, masks_data):
+def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
     """
     Prepares data for segmentation job.
     1. Convert svg path to nparray of size nxnx3 (rgb image). 0 is unlabelled, user labelled class is
@@ -564,8 +649,10 @@ def train_segmentation(train_seg_n_clicks, masks_data):
 
     4. Send job messages into job queue
     """
-    # save tiff series of masks (same index as above)
     # code from https://dash.plotly.com/annotations
+    ### don't fire if no selection is made ###
+    if (train_seg_n_clicks is None) or (seg_dropdown_value is None):
+        raise PreventUpdate
     #### Create masks from the svg shape data stored in the hidden div ####
     image_index_with_mask = list(masks_data.keys())
     debug = ''
@@ -578,50 +665,129 @@ def train_segmentation(train_seg_n_clicks, masks_data):
 
     # call ml_api to dispatch job to workers (blocking for now, future will probably have a dispatcher server to handle setting up the job queue, etc)
     print(job_dispatcher.__dir__())
-    seg_job = job_dispatcher.simpleJob('segmentation job',
-            deploy_location = 'local-vaughan',
-            docker_uri = 'hello-world',
-            docker_cmd = '',
-            input_location = 'data/input',
-            output_location = 'data/output'
-            )
-    seg_job.launchJob(AMQP_URL) 
-    #ml_api.j.createJob()
-    #ml_api.job_dispatcher.vaughan.launchJob()
-    return [seg_job.js_payload]
+    if seg_dropdown_value == 'Random Forest':
+        feat_job = job_dispatcher.simpleJob('supervised segmentation, feature generation',
+                deploy_location = 'local-vaughan',
+                docker_uri = MODEL_DATABASE[seg_dropdown_value],
+                docker_cmd = 'python3 feature_generation.py',
+                kw_args = '/data/images_hardcoded /data/features',
+                amqp_url=AMQP_URL
+                )
+        feat_job.launchJob() 
 
+        seg_job = job_dispatcher.simpleJob('supervised segmentation, random forest training',
+                deploy_location = 'local-vaughan',
+                docker_uri = MODEL_DATABASE[seg_dropdown_value],
+                docker_cmd = 'python3 random_forest.py',
+                kw_args = '/data/masks_hardcoded /data/features /data/model',
+                amqp_url=AMQP_URL,
+                )
+        feature_results = feat_job.monitorJob()
+        #ml_api.j.createJob()
+        seg_job.launchJob()
+        seg_results = seg_job.monitorJob()
+        #ml_api.job_dispatcher.vaughan.launchJob()
+        print(feature_results)
+        print(seg_results)
+    elif seg_dropdown_value == "MSD":
+        seg_job = job_dispatcher.simpleJob('supervised segmentation, msd training',
+                deploy_location = 'local-vaughan',
+                docker_uri = MODEL_DATABASE[seg_dropdown_value],
+                docker_cmd = 'python Deploy.py',
+                kw_args = '/data/masks_hardcoded/ /data/images_hardcoded/ /data/model/',
+                amqp_url=AMQP_URL,
+                )
+        seg_job.launchJob()
+        seg_results = seg_job.monitorJob()
         
-    # to have ml_api sitting as a fastapi server, PUT: segmentation job, ML_API: OKAY! ML_API: figures out 
-    # the specifics of the job and dispatches them to the working queue. For now, we'll just call ml_api as a 
-    # library function and the result will be blocking.
+    return [seg_results.decode('utf8')]
 
-choose_segmentation_card =  [
-        dbc.Card(
-            [
-                dbc.Form(
-                    [
-                        dbc.FormGroup(
-                            [
-                                dbc.Label('Choose Segmentation Model', className='mr-2'),
-                                dcc.Dropdown(id='seg-dropdown',
-                                    options=[
-                                        {'label': 'MSD', 'value': 'msd'},
-                                        {'label': 'RandomForest', 'value': 'random_forest'},
-                                        ],
-                                    style={'min-width' : '250px'},
-                                    value = 'random_forest',
-                                    ),
-                                ],
-                            className='mr-5',
-                            ),
-                        ],
-                    inline=True
-                    )
-                ]
-            )
+@app.callback(
+        [
+        Output('classified-image-store', 'data'),
+        ],
+        
+        [
+        Input('compute-seg', 'n_clicks'),
+        ],
+        [
+            State('seg-dropdown', 'value'),
+            ]
+        )
+def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value):
+    if compute_seg_n_clicks is None:
+        raise PreventUpdate
+    print('computing segmentation...')
+    ##deploy_job = job_dispatcher.simpleJob('supervised segmentation, random forest deploy',
+    #        deploy_location = 'local-vaughan',
+    #        docker_uri = MODEL_DATABASE[seg_dropdown_value],
+    #        docker_cmd = 'python3 segment.py',
+    #        kw_args = '/data/bead_pack.tif /data/model/random-forest.model /data/output',
+    #        amqp_url=AMQP_URL,
+    #        )
+    ##ml_api.j.createJob()
+    #deploy_job.launchJob()
+    #deploy_results = deploy_job.monitorJob()
+    #print(deploy_results)
+
+    # now read in deploy results and save them to the
+    # classified image store
+    class_im_series = pims.open('data/output/*.tif')
+    print(class_im_series)
+
+    def label_to_colors(
+    img, colormap=px.colors.qualitative.Light24, alpha=128, color_class_offset=0):
+        """
+        Take MxN matrix containing integers representing labels and return an MxNx4
+        matrix where each label has been replaced by a color looked up in colormap.
+        colormap entries must be strings like plotly.express style colormaps.
+        alpha is the value of the 4th channel
+        color_class_offset allows adding a value to the color class index to force
+        use of a particular range of colors in the colormap. This is useful for
+        example if 0 means 'no class' but we want the color of class 1 to be
+        colormap[0].
+        """
+        global CLASSIFIED_VOLUME
+        def fromhex(n):
+            return int(n, base=16)
+        colormap = [
+            tuple([fromhex(h[s : s + 2]) for s in range(0, len(h), 2)])
+            for h in [c.replace("#", "") for c in colormap]
         ]
+        cimg = np.zeros(img.shape[:2] + (3,), dtype="uint8")
+        minc = np.min(img)
+        maxc = np.max(img)
+        for c in range(int(minc), int(maxc) + 1):
+            cimg[img == c] = colormap[(c + color_class_offset) % len(colormap)]
+        return np.concatenate(
+            (cimg, alpha * np.ones(img.shape[:2] + (1,), dtype="uint8")), axis=2
+        )
+    begin_deploy = time()
+    #data = { i:label_to_colors(im, color_class_offset=-1) for i, im in enumerate(class_im_series) }
+    end_deploy = time()
+    test=label_to_colors(class_im_series[0], colormap=class_label_colormap, color_class_offset=-1)
+    def img_array_to_pil_image(ia):
+        ia = skimage.util.img_as_ubyte(ia)
+        img = PIL.Image.fromarray(ia)
+        return img
 
-                                    
+    ttest=img_array_to_pil_image(test)
+    ttest.save('data/colortest1.png')
+
+    data = {}
+    for i,im in enumerate(class_im_series):
+        color_im = label_to_colors(im, colormap=class_label_colormap, color_class_offset=-1)
+        pil_im = img_array_to_pil_image(color_im)
+        
+    CLASSIFIED_VOLUME = [img_array_to_pil_image(label_to_colors(im, colormap=class_label_colormap, color_class_offset=-1)) for im in class_im_series]
+    print('finished deploying {}, total segmented images: {}'.format(end_deploy-begin_deploy,len(data)))
+    return [data]
+
+    # need to compute every image slice. I think we'll just
+    # make something that generalizes to the MSD, where we have
+    # a single worker node-- there is no point scaling up becaue we only have one or two gpus. 
+    # in the created docker file, we will use job lib to create parallel shit.
+                                   
 
 meta = [
     html.Div(
