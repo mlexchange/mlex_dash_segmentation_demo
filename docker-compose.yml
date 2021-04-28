@@ -19,9 +19,10 @@ services:
         ports:
             - '8050:8050'
     rabbit:
-        image: 'rabbitmq:latest'
+        image: 'rabbitmq:3-management'
         ports:
             - "5672:5672"
+            - "15672:15672"
 
     consumer:
         container_name: "cons"

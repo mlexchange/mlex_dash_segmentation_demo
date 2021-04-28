@@ -74,12 +74,14 @@ class simpleJob():
             docker_cmd,
             kw_args,
             amqp_url,
+            GPU = False
             ):
         self.job_description = job_description
         self.deploy_location = deploy_location
         self.docker_uri = docker_uri
         self.docker_cmd = docker_cmd
         self.kw_args = kw_args
+        self.gpu = GPU
 
         self.response = None
         self.corr_id = str(uuid.uuid4())
@@ -87,18 +89,19 @@ class simpleJob():
         # create json payload
         payload = {'docker_uri':self.docker_uri,
                 'docker_cmd':self.docker_cmd,
+                'gpu': self.gpu,
                 'kw_args':self.kw_args,
                 }
         self.js_payload = json.dumps(payload)
         params = pika.URLParameters(amqp_url)
         self.connection = pika.BlockingConnection(params)
         self.channel = self.connection.channel()
-        result =self.channel.queue_declare(queue='ml_tasks', durable=True)
-        self.callback_queue = result.method.queue # somehow creates a callback queue, don't know how
+        result =self.channel.queue_declare(queue='results', durable=True)
+        self.channel.queue_declare(queue='ml_tasks', durable=True)
+        self.callback_queue = result.method.queue 
         self.channel.basic_consume(
                 queue=self.callback_queue,
                 on_message_callback=self._on_response,
-                auto_ack=True
                 )
 
 
@@ -114,7 +117,6 @@ class simpleJob():
                 properties=pika.BasicProperties(
                     reply_to = self.callback_queue,
                     correlation_id=self.corr_id,
-                    delivery_mode=2,
                     )
                 )
         print('send job to queue')
@@ -128,5 +130,6 @@ class simpleJob():
         """
         while self.response is None:
             self.connection.process_data_events()
+        self.connection.close()
         return self.response
         pass

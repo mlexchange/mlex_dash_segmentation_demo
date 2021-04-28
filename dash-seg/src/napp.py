@@ -43,7 +43,6 @@ card_color = {"dark": "#2D3038", "light": "#FFFFFF"}
 
 #compute_features = memory.cache(multiscale_basic_features)
 #### GLOBAL PARAMS ####
-
 SEG_FEATURE_TYPES = ["intensity", "edges", "texture"]
 NUM_LABEL_CLASSES = 5
 DEFAULT_LABEL_CLASS = 0
@@ -60,7 +59,7 @@ AMQP_URL = os.environ['AMQP_URL']
 # hardcoded model database as dict
 print('loaded database')
 MODEL_DATABASE = {"Random Forest":"aasgreen/random-forest-dc",
-                "MSD": "rings/msdnetwork-notebook",
+                "MSD": "aasgreen/msdnetwork-notebook",
                 "":"",
                 }
 
@@ -258,9 +257,9 @@ segmentation = [
                 ),
             Input('show-segmentation', 'value'),
         ],
-        [State("masks", "data"), State('classified-image-store', 'data')],
+        [State("masks", "data"), State('classified-image-store', 'data'), State("seg-dropdown", "value")],
         )
-def update_figure(image_slider_value, any_label_class_button_value,show_segmentation_value, masks_data, classified_image_store_data):
+def update_figure(image_slider_value, any_label_class_button_value,show_segmentation_value, masks_data, classified_image_store_data, seg_dropdown_value):
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     
@@ -288,7 +287,11 @@ def update_figure(image_slider_value, any_label_class_button_value,show_segmenta
 
         # read in image (too large to store all images in browser cache)
         try:
-            semi = imageio.imread('data/output/{}-classified.tif'.format(image_slider_value))
+            if seg_dropdown_value== "Random Forest":
+                semi = imageio.imread('data/output/{}-classified.tif'.format(image_slider_value))
+            elif seg_dropdown_value == "MSD":
+                semi = imageio.mimread('data/output/results.tif')[image_slider_value]
+
         except:
             print('slice not yet segmented')
         semi = label_to_colors(semi)
@@ -623,9 +626,11 @@ class mask_tasks():
             return mask_names
 
     
+#training_results = [html.Div(id='training-results'), children = '']
 @app.callback(
         [
             Output('debug-print','children'),
+#            Output('training-results', 'children')
         ],
         [
             Input('train-seg','n_clicks')
@@ -696,9 +701,13 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
                 docker_cmd = 'python Deploy.py',
                 kw_args = '/data/masks_hardcoded/ /data/images_hardcoded/ /data/model/',
                 amqp_url=AMQP_URL,
+                GPU = True
                 )
         seg_job.launchJob()
+        print('launched segmentation on ml server')
         seg_results = seg_job.monitorJob()
+        print('server has returned value: ')
+        print(str(seg_results))
         
     return [seg_results.decode('utf8')]
 
@@ -718,69 +727,34 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value):
     if compute_seg_n_clicks is None:
         raise PreventUpdate
     print('computing segmentation...')
-    ##deploy_job = job_dispatcher.simpleJob('supervised segmentation, random forest deploy',
-    #        deploy_location = 'local-vaughan',
-    #        docker_uri = MODEL_DATABASE[seg_dropdown_value],
-    #        docker_cmd = 'python3 segment.py',
-    #        kw_args = '/data/bead_pack.tif /data/model/random-forest.model /data/output',
-    #        amqp_url=AMQP_URL,
-    #        )
-    ##ml_api.j.createJob()
-    #deploy_job.launchJob()
-    #deploy_results = deploy_job.monitorJob()
-    #print(deploy_results)
+    if seg_dropdown_value == "Random Forest":
+        docker_cmd = "python3 segment.py"
+        kw_args = '/data/bead_pack.tif /data/model/random-forest.model /data/output'
+        GPU = False
+    elif (seg_dropdown_value == "MSD"):
+        docker_cmd = "python Segment.py"
+        kw_args = '/data/bead_pack.tif /data/model/state_dict_net.pt /data/output'
+        GPU=True 
+    deploy_job = job_dispatcher.simpleJob('supervised segmentation, random forest deploy',
+            deploy_location = 'local-vaughan',
+            docker_uri = MODEL_DATABASE[seg_dropdown_value],
+            docker_cmd = docker_cmd,
+            kw_args = kw_args,
+            amqp_url=AMQP_URL,
+            GPU = GPU
+            )
+   # ml_api.j.createJob()
+    print(deploy_job.kw_args)
+    deploy_job.launchJob()
+    print('sending images to server to be segmented')
+    deploy_results = deploy_job.monitorJob()
+    print('server has returned results: ')
+    print(deploy_results)
 
     # now read in deploy results and save them to the
     # classified image store
-    class_im_series = pims.open('data/output/*.tif')
-    print(class_im_series)
-
-    def label_to_colors(
-    img, colormap=px.colors.qualitative.Light24, alpha=128, color_class_offset=0):
-        """
-        Take MxN matrix containing integers representing labels and return an MxNx4
-        matrix where each label has been replaced by a color looked up in colormap.
-        colormap entries must be strings like plotly.express style colormaps.
-        alpha is the value of the 4th channel
-        color_class_offset allows adding a value to the color class index to force
-        use of a particular range of colors in the colormap. This is useful for
-        example if 0 means 'no class' but we want the color of class 1 to be
-        colormap[0].
-        """
-        global CLASSIFIED_VOLUME
-        def fromhex(n):
-            return int(n, base=16)
-        colormap = [
-            tuple([fromhex(h[s : s + 2]) for s in range(0, len(h), 2)])
-            for h in [c.replace("#", "") for c in colormap]
-        ]
-        cimg = np.zeros(img.shape[:2] + (3,), dtype="uint8")
-        minc = np.min(img)
-        maxc = np.max(img)
-        for c in range(int(minc), int(maxc) + 1):
-            cimg[img == c] = colormap[(c + color_class_offset) % len(colormap)]
-        return np.concatenate(
-            (cimg, alpha * np.ones(img.shape[:2] + (1,), dtype="uint8")), axis=2
-        )
-    begin_deploy = time()
-    #data = { i:label_to_colors(im, color_class_offset=-1) for i, im in enumerate(class_im_series) }
-    end_deploy = time()
-    test=label_to_colors(class_im_series[0], colormap=class_label_colormap, color_class_offset=-1)
-    def img_array_to_pil_image(ia):
-        ia = skimage.util.img_as_ubyte(ia)
-        img = PIL.Image.fromarray(ia)
-        return img
-
-    ttest=img_array_to_pil_image(test)
-    ttest.save('data/colortest1.png')
-
-    data = {}
-    for i,im in enumerate(class_im_series):
-        color_im = label_to_colors(im, colormap=class_label_colormap, color_class_offset=-1)
-        pil_im = img_array_to_pil_image(color_im)
+    data = ''
         
-    CLASSIFIED_VOLUME = [img_array_to_pil_image(label_to_colors(im, colormap=class_label_colormap, color_class_offset=-1)) for im in class_im_series]
-    print('finished deploying {}, total segmented images: {}'.format(end_deploy-begin_deploy,len(data)))
     return [data]
 
     # need to compute every image slice. I think we'll just
