@@ -51,6 +51,6 @@ if __name__ == "__main__":
         imageio.imsave(str(OUTPUT_DIR / '{}-classified.tif'.format(index)), output_im) 
         print('classified: {}'.format(index))
 
-    Parallel(n_jobs=-1)(delayed(seg_image)(im_stack[i], i) for i in range(100))
+    Parallel(n_jobs=-1)(delayed(seg_image)(im_stack[i], i) for i in range(len(im_stack)))
 
 

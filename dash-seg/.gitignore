@@ -7,4 +7,5 @@ certs/
 myserver.key
 .bash_history
 .python_history
+dash-seg/data
 

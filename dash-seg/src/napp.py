@@ -36,6 +36,7 @@ import numpy as np
 from mlex_api.mlex_api import job_dispatcher
 ##### TEMPLATE MODULES
 import templates
+import re
 
 text_color = {"dark": "#95969A", "light": "#595959"}
 card_color = {"dark": "#2D3038", "light": "#FFFFFF"}
@@ -52,6 +53,7 @@ class_labels = list(range(NUM_LABEL_CLASSES))
 SAMPLE_DATA = 'data/bead_pack.tif'
 MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
+
 features_dict = {}
 # run if in docker compose service
 AMQP_URL = os.environ['AMQP_URL']
@@ -156,7 +158,7 @@ def make_default_figure(image_index, shapes=[],stroke_color = '#ff4f00'):
 
 #### SETUP DASH APP ####
 external_stylesheets = [dbc.themes.BOOTSTRAP, "../assets/segmentation-style.css"]
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets, suppress_callback_exceptions=True)
 
 server = app.server
 app.title = "MLExchange Labeling | Image Segmentation"
@@ -256,10 +258,11 @@ segmentation = [
                 "n_clicks_timestamp",
                 ),
             Input('show-segmentation', 'value'),
+            Input("seg-dropdown", "value"),
         ],
-        [State("masks", "data"), State('classified-image-store', 'data'), State("seg-dropdown", "value")],
+        [State("masks", "data"), State('classified-image-store', 'data'), ],
         )
-def update_figure(image_slider_value, any_label_class_button_value,show_segmentation_value, masks_data, classified_image_store_data, seg_dropdown_value):
+def update_figure(image_slider_value, any_label_class_button_value,show_segmentation_value,seg_dropdown_value, masks_data, classified_image_store_data):
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     
@@ -345,6 +348,21 @@ def store_masks(graph_relayoutData, image_slice, masks_data):
     if graph_relayoutData is not None:
         if 'shapes' in graph_relayoutData.keys():
             masks_data[image_slice] = graph_relayoutData['shapes']
+            #print(masks_data[image_slice][0].keys())
+        elif any(["shapes" in key for key in graph_relayoutData]):
+            #print(masks_data[str(image_slice)])
+            for key in graph_relayoutData:
+                if 'shapes' in key:
+                    #print('key: {}'.format(key))
+                    # get index of edited shape
+                    shape_index_re = re.compile('shapes\[(\d*)\].path') # fragile, probably break on dash update
+                    shape_index = int(shape_index_re.match(key).group(1))
+                    #print(shapes[shape_index])
+                    #print('modified...')
+                    #print(graph_relayoutData[key])
+                    masks_data[str(image_slice)][shape_index]['path'] = graph_relayoutData[key]
+                    
+            #print(graph_relayoutData[key])
         else:
             return dash.no_update
 
@@ -421,13 +439,19 @@ sidebar_label = [
                                             ],
                                         style={'min-width':'250px'},
                                         ),
+                                    ],
+                                ),
+
+                            html.Hr(),
+                            dbc.FormGroup(
+                                [
                             dbc.Button(
                                     "Train Segmenter",
                                     id="train-seg",
                                     outline=True,
                                     ),
                             dbc.Button(
-                                    "Deploy Segmenter",
+                                    "Segment Image Stack",
                                     id="compute-seg",
                                     outline=True,
                                     ),
@@ -499,37 +523,34 @@ msd_params = [
                                         className="card-title",
                                     ),
                                     dbc.Label(
-                                        "Fluxing Gamma",
-                                        html_for="fluxing-gamma",
+                                        id='learning-rate-slider-output',
+                                        children="Learning Rate: .02",
+                                        html_for="learning-rate",
                                     ),
-                                    dcc.RangeSlider(
-                                        id="fluxing-gamma-slider",
+                                    dcc.Slider(
+                                        id="learning-rate-slider",
                                         min=0.01,
-                                        max=20,
+                                        max=.1,
                                         step=0.01,
-                                        value=[0.5, 16],
+                                        value=.02,
                                     ),
                                 ]
                             ),
-                            dbc.FormGroup(
-                                [
-                                    dbc.Label(
-                                        "Aether Drop Rate Parameters",
-                                        html_for="aether-drop-rate",
-                                    ),
-                                    dcc.Checklist(
-                                        id="aether-drop-rate",
-                                        options=[
-                                            {"label": l.capitalize(), "value": l}
-                                            for l in ['slime','bateroen', 'krakken parameter']
-                                        ],
-                                        value=["krakken parameter"],
-                                    ),
-                                ]
-                            ),
+                           
                             ]
 
 
+### REACTIVE FOR MSD PARAMETERS ###
+
+@app.callback(
+            Output('learning-rate-slider-output', 'children'),
+            
+        [
+            Input('learning-rate-slider', 'value'),
+            ]
+        )
+def update_learning_rate_slider(learning_rate_slider_value):
+    return "Learning Rate: {}".format(learning_rate_slider_value)
 ### REACTIVE FOR SEGMENTATION PARAMETERS ###
 @app.callback(
         [
@@ -609,8 +630,11 @@ class mask_tasks():
             filenames of saved mask files (.dat files, with pixels labelled as class)
         """
         mask_names = []
+        print (masks_data.keys())
         for key in masks_data:
+            print('mask index: {}'.format(key))
             shapes = masks_data[key]
+            print('mask shapes: {}'.format(shapes))
             masks = np.zeros(IMAGES_SHAPE)
             masks_image = np.ones( (*IMAGES_SHAPE, 3), dtype=np.uint8) ## assume rgb data
 
@@ -621,16 +645,57 @@ class mask_tasks():
                 masks[c_mask > 0] = c_mask[c_mask > 0]
 
             mask_f_name = str(MASK_OUTPUT_DIR / 'n-{}'.format(key))
+            print(mask_f_name)
             sav_return = np.savetxt(mask_f_name, masks)
             mask_names.append(mask_f_name)
-            return mask_names
+        return mask_names
 
     
-#training_results = [html.Div(id='training-results'), children = '']
+training_results = [html.Div([
+    dcc.Graph(
+        id='training-results',
+        ),
+    dcc.Interval(
+        id='update-training-loss',
+        interval=1*1000, # milliseconds
+        n_intervals=0,
+        ),
+    ],
+    id='training-visible',
+    hidden=True,
+    ),
+    html.Div('')
+    ]
+
+@app.callback(
+        [Output('training-results', 'figure'),
+            Output('training-visible', 'hidden'),
+            ],
+        Input('update-training-loss', 'n_intervals'),
+        )
+def update_training_loss(n):
+    try:
+        loss_plot = imageio.imread('data/model/msd-losses.png')
+        loss_plot_fig= px.imshow(loss_plot)
+        width,height = loss_plot.shape[0:2]
+        loss_plot_fig.update_xaxes(
+        showgrid=False, showticklabels=False, zeroline=False
+            )
+        loss_plot_fig.update_yaxes(
+            showgrid=False,
+            scaleanchor="x",
+            showticklabels=False,
+            zeroline=False,
+        )
+        return [loss_plot_fig, False]
+    except Exception as e:
+        loss_plot_fig = px.scatter([[0,0]])
+    
+    return [loss_plot_fig,True]
+ 
 @app.callback(
         [
             Output('debug-print','children'),
-#            Output('training-results', 'children')
         ],
         [
             Input('train-seg','n_clicks')
@@ -675,7 +740,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
                 deploy_location = 'local-vaughan',
                 docker_uri = MODEL_DATABASE[seg_dropdown_value],
                 docker_cmd = 'python3 feature_generation.py',
-                kw_args = '/data/images_hardcoded /data/features',
+                kw_args = '/data/images /data/features',
                 amqp_url=AMQP_URL
                 )
         feat_job.launchJob() 
@@ -684,7 +749,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
                 deploy_location = 'local-vaughan',
                 docker_uri = MODEL_DATABASE[seg_dropdown_value],
                 docker_cmd = 'python3 random_forest.py',
-                kw_args = '/data/masks_hardcoded /data/features /data/model',
+                kw_args = '/data/masks /data/features /data/model',
                 amqp_url=AMQP_URL,
                 )
         feature_results = feat_job.monitorJob()
@@ -699,17 +764,20 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
                 deploy_location = 'local-vaughan',
                 docker_uri = MODEL_DATABASE[seg_dropdown_value],
                 docker_cmd = 'python Deploy.py',
-                kw_args = '/data/masks_hardcoded/ /data/images_hardcoded/ /data/model/',
+                kw_args = '/data/masks/ /data/images/ /data/model/',
                 amqp_url=AMQP_URL,
                 GPU = True
                 )
         seg_job.launchJob()
         print('launched segmentation on ml server')
-        seg_results = seg_job.monitorJob()
-        print('server has returned value: ')
-        print(str(seg_results))
+       # seg_results = seg_job.monitorJob()
+       # print('server has returned value: ')
+       # print(str(seg_results))
+            
+            
+    return ['']
         
-    return [seg_results.decode('utf8')]
+    #return [seg_results.decode('utf8')]
 
 @app.callback(
         [
@@ -822,6 +890,7 @@ app.layout = html.Div (
                         [dbc.Col(segmentation, width=8), dbc.Col(sidebar_label, width=4)]
                     ),
                     dbc.Row(dbc.Col(html.P(id='debug-print', children=''))),
+                    dbc.Row(dbc.Col(training_results)),
                     dbc.Row(dbc.Col(meta)),
                 ]
             ),
@@ -830,3 +899,4 @@ app.layout = html.Div (
         )
 if __name__ == "__main__":
     app.run_server(debug=True, host='0.0.0.0')
+    
