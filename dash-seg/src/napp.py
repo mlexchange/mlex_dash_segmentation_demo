@@ -51,6 +51,7 @@ DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 class_label_colormap = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"]
 class_labels = list(range(NUM_LABEL_CLASSES))
 SAMPLE_DATA = 'data/bead_pack.tif'
+SAMPLE_DATA = 'data/eric-micro.tif' # added for eric
 MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
 
