@@ -131,9 +131,22 @@ def look_up_seg(d, key):
     img = PIL.Image.open(io.BytesIO(img_bytes))
     return img
 
-def make_default_figure(image_index, shapes=[],stroke_color = '#ff4f00'):
-    fig = px.imshow(np_volume[image_index], binary_string=True)
-    width, height = np_volume[image_index].shape
+def make_default_figure(image_index, shapes=[],stroke_color = '#ff4f00', image_cache=None):
+    if image_cache == None:
+        im = np_volume[image_index]
+        width, height = im.shape
+        print('default figure')
+    else:
+        # image_cache is a dict, keys=filename, value=bin encoding
+        img_bytes = base64.b64decode(image_cache)
+        im_bbytes = io.BytesIO(img_bytes)
+        print('first', im_bbytes)
+        im= PIL.Image.open(im_bbytes)
+        print('read in uploaded file {}'.format(im))
+        width, height = np.array(im).shape
+        print(width, height)
+        
+    fig = px.imshow(im, binary_string=True)
     fig.update_layout(
             {
                 'dragmode' : 'drawopenpath',
@@ -179,7 +192,28 @@ segmentation = [
     dbc.Card(
         id="segmentation-card",
         children=[
-            dbc.CardHeader("Viewer"),
+            dbc.CardHeader(
+                [
+                    dcc.Upload(
+                        id='upload-image',
+                        children=html.Div([
+                            'Drag and Drop',
+                            ]),
+                        style={
+                            'width': '100%',
+                            'height': '60px',
+                            'lineHeight': '60px',
+                            'borderWidth': '1px',
+                            'borderStyle': 'dashed',
+                            'borderRadius': "5px",
+                            'textAlign': 'center',
+                            'maring':'10px'
+                            },
+                        multiple=True,
+                        )
+
+                ]
+            ),
             dbc.CardBody(
                         dcc.Graph(
                         id="graph",
@@ -246,6 +280,24 @@ segmentation = [
         )
         ]
 
+### REACTIVE COMPONENTS FOR UPLOADING FIGURE ###
+@app.callback(
+        Output('image-store', 'data'
+        ),
+        Input('upload-image', 'contents'),
+        Input('upload-image', 'filename'),
+        State('image-store', 'data'),
+        )
+def image_upload(upload_image_contents, upload_image_filename,image_store_data):
+    print('uploading data...')
+    print(upload_image_contents)
+    if upload_image_contents is not None:
+        for c, n in zip(upload_image_contents, upload_image_filename):
+            content_type, content_string = c.split(',')
+            image_store_data[n] = (content_type, content_string)
+            print('storing: {} \n {}'.format(n,c))
+    return image_store_data     
+        
 ### REACTIVE COMPONENTS FOR DISPLAY FIGURE ###
 @app.callback(
         [
@@ -259,10 +311,11 @@ segmentation = [
                 ),
             Input('show-segmentation', 'value'),
             Input("seg-dropdown", "value"),
+            Input('image-store', 'data'),
         ],
-        [State("masks", "data"), State('classified-image-store', 'data'), ],
+        [State("masks", "data"),State('classified-image-store', 'data'), ],
         )
-def update_figure(image_slider_value, any_label_class_button_value,show_segmentation_value,seg_dropdown_value, masks_data, classified_image_store_data):
+def update_figure(image_slider_value, any_label_class_button_value,show_segmentation_value,seg_dropdown_value,image_store_data, masks_data, classified_image_store_data):
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     
@@ -280,10 +333,16 @@ def update_figure(image_slider_value, any_label_class_button_value,show_segmenta
     # plot the new figure given:
     # 1. a change in image slice (from slider)
     # 2. a "show masks" button toggled
+    if len(image_store_data) >0:
+        im_cache = image_store_data[list(image_store_data.keys())[0]][1]
+        print(image_store_data[list(image_store_data.keys())[0]][0])
+    else:
+        im_cache = None
     im = make_default_figure(
             image_slider_value, 
             shapes,
-            stroke_color=class_to_color(label_class_value)
+            stroke_color=class_to_color(label_class_value),
+            image_cache=im_cache,
             )
     if ("Show segmentation" in show_segmentation_value):
         print('showing seg')
@@ -657,7 +716,7 @@ training_results = [html.Div([
         ),
     dcc.Interval(
         id='update-training-loss',
-        interval=1*1000, # milliseconds
+        interval=1*10000, # milliseconds
         n_intervals=0,
         ),
     ],
@@ -843,6 +902,7 @@ meta = [
             dcc.Store(id="classified-image-store", data={}),
             dcc.Store(id="features_hash", data=""),
             dcc.Store(id='current-image-num', data=0),
+            dcc.Store(id='image-store', data={}),
         ],
     ),
     html.Div(id="download-dummy"),
