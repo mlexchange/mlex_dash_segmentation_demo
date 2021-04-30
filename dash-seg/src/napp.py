@@ -310,6 +310,7 @@ def update_figure(image_slider_value, any_label_class_button_value,show_segmenta
         semipng.save('data/printcolor.png')
         print(semipng)
         width, height = (semi.shape[0],semi.shape[1])
+        width,height = (255,255)
         im.add_layout_image(
                 dict(
                     source=semipng,
@@ -802,7 +803,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value):
         GPU = False
     elif (seg_dropdown_value == "MSD"):
         docker_cmd = "python Segment.py"
-        kw_args = '/data/bead_pack.tif /data/model/state_dict_net.pt /data/output'
+        kw_args = '/data/eric-micro.tif /data/model/state_dict_net.pt /data/output'
         GPU=True 
     deploy_job = job_dispatcher.simpleJob('supervised segmentation, random forest deploy',
             deploy_location = 'local-vaughan',
