@@ -23,3 +23,6 @@ dash-vtk
 itk==5.2rc1
 dash-slicer>=0.2.0
 pika
+dash-auth==1.3.2
+requests
+flask

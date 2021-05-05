@@ -3,6 +3,7 @@ version: '3'
 #env file is ./.env
 services:
     front-end:
+        restart: "unless-stopped"
         container_name: "fronty"
         build: 
             context: 'dash-seg/'
@@ -19,12 +20,14 @@ services:
         ports:
             - '8050:8050'
     rabbit:
+        restart: "unless-stopped"
         image: 'rabbitmq:3-management'
         ports:
             - "5672:5672"
             - "15672:15672"
 
     consumer:
+        restart: "unless-stopped"
         container_name: "cons"
         build:
             context: "consumer"

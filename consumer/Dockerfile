@@ -30,7 +30,8 @@ RUN pip3 install --upgrade pip &&\
 COPY ml_worker.sh ml_worker.sh
 COPY ml_worker.py ml_worker.py
 ENV PYTHONUNBUFFERED=1
-CMD ["sleep", "1d"]
+#CMD ["sleep", "1d"]
 
-#CMD python3 ml_worker.py
+CMD echo 'test'
+CMD python3 ml_worker.py
 #CMD ["bash", "ml_worker.sh"]

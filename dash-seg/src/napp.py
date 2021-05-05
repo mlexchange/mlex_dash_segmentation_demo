@@ -2,6 +2,7 @@ import plotly.express as px
 import dash
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
+import dash_auth
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
@@ -64,6 +65,11 @@ MODEL_DATABASE = {"Random Forest":"aasgreen/random-forest-dc",
                 "MSD": "aasgreen/msdnetwork-notebook",
                 "":"",
                 }
+
+### AUTHENTICAION ###
+VALID_USERNAME_PASSWORD_PAIRS = {
+        'admin': 'admin'
+        }
 
 #### HELPER UTILS
 def dcm_to_np(dir_path):
@@ -172,6 +178,10 @@ def make_default_figure(image_index, shapes=[],stroke_color = '#ff4f00', image_c
 #### SETUP DASH APP ####
 external_stylesheets = [dbc.themes.BOOTSTRAP, "../assets/segmentation-style.css"]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, suppress_callback_exceptions=True)
+auth = dash_auth.BasicAuth(
+        app,
+        VALID_USERNAME_PASSWORD_PAIRS,
+        )
 
 server = app.server
 app.title = "MLExchange Labeling | Image Segmentation"
