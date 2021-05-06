@@ -51,7 +51,7 @@ DEFAULT_LABEL_CLASS = 0
 DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 class_label_colormap = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"]
 class_labels = list(range(NUM_LABEL_CLASSES))
-SAMPLE_DATA = 'data/bead_pack.tif'
+SAMPLE_DATA = 'data/arc_data/arc_stack.tiff'
 MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
 
@@ -866,11 +866,11 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value):
     print('computing segmentation...')
     if seg_dropdown_value == "Random Forest":
         docker_cmd = "python3 segment.py"
-        kw_args = '/data/bead_pack.tif /data/model/random-forest.model /data/output'
+        kw_args = '/' + SAMPLE_DATA+ " /data/model/random-forest.model /data/output"
         GPU = False
     elif (seg_dropdown_value == "MSD"):
         docker_cmd = "python Segment.py"
-        kw_args = '/data/bead_pack.tif /data/model/state_dict_net.pt /data/output'
+        kw_args = "/"+SAMPLE_DATA+' /data/model/state_dict_net.pt /data/output'
         GPU=True 
     deploy_job = job_dispatcher.simpleJob('supervised segmentation, random forest deploy',
             deploy_location = 'local-vaughan',
