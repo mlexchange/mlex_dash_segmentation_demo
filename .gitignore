@@ -6,3 +6,4 @@ dash-seg/data/masks/*
 dash-seg/data/features/*
 **/*secrets*
 
+dash-seg/data/arc_data/*

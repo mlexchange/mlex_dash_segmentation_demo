@@ -140,7 +140,7 @@ def look_up_seg(d, key):
 def make_default_figure(image_index, shapes=[],stroke_color = '#ff4f00', image_cache=None):
     if image_cache == None:
         im = np_volume[image_index]
-        width, height = im.shape
+        width, height = im.shape[0:2]
         print('default figure')
     else:
         # image_cache is a dict, keys=filename, value=bin encoding
@@ -149,7 +149,7 @@ def make_default_figure(image_index, shapes=[],stroke_color = '#ff4f00', image_c
         print('first', im_bbytes)
         im= PIL.Image.open(im_bbytes)
         print('read in uploaded file {}'.format(im))
-        width, height = np.array(im).shape
+        width, height = np.array(im).shape[0:2]
         print(width, height)
         
     fig = px.imshow(im, binary_string=True)
