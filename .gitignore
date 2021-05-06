@@ -7,3 +7,5 @@ dash-seg/data/features/*
 **/*secrets*
 
 dash-seg/data/arc_data/*
+dash-seg/data/*.png
+
