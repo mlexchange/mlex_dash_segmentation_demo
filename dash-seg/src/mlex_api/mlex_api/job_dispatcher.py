@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 import json
 import pika
 import uuid
+import hashlib
 
 
 class JobInterface:
@@ -74,7 +75,8 @@ class simpleJob():
             docker_cmd,
             kw_args,
             amqp_url,
-            GPU = False
+            GPU = False,
+            corr_id = str(uuid.uuid4()), # if no id, create
             ):
         self.job_description = job_description
         self.deploy_location = deploy_location
@@ -84,7 +86,7 @@ class simpleJob():
         self.gpu = GPU
 
         self.response = None
-        self.corr_id = str(uuid.uuid4())
+        self.corr_id = corr_id 
 
         # create json payload
         payload = {'docker_uri':self.docker_uri,

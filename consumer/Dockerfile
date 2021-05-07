@@ -32,6 +32,5 @@ COPY ml_worker.py ml_worker.py
 ENV PYTHONUNBUFFERED=1
 #CMD ["sleep", "1d"]
 
-CMD echo 'test'
 CMD python3 ml_worker.py
 #CMD ["bash", "ml_worker.sh"]

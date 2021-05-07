@@ -6,10 +6,12 @@ import dash_auth
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
+from flask import request
 import plot_common
 import json
 import pathlib
 import os
+import uuid
 #from shapes_to_segmentations import (
 #    compute_segmentations,
 #    blend_image_and_classified_regions_pil,
@@ -51,6 +53,7 @@ DEFAULT_LABEL_CLASS = 0
 DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 class_label_colormap = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"]
 class_labels = list(range(NUM_LABEL_CLASSES))
+SAMPLE_DATA = 'data/bead_pack.tif'
 SAMPLE_DATA = 'data/arc_data/arc_stack.tiff'
 MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
@@ -192,8 +195,9 @@ CLASSIFIED_VOLUME = np.zeros(np_volume.shape)
 N_IMAGES = np_volume.shape[0]
 IMAGES_SHAPE = (np_volume.shape[1], np_volume.shape[2])
 
+### SETUP INPUT/OUTPUT DIRECTORIES ###
 
-
+### BEGIN DASH CODE ###
 header = templates.header()
 
 
@@ -512,18 +516,31 @@ sidebar_label = [
                                 ),
 
                             html.Hr(),
-                            dbc.FormGroup(
-                                [
-                            dbc.Button(
-                                    "Train Segmenter",
-                                    id="train-seg",
-                                    outline=True,
+                            dbc.Row(
+                                    [
+                               dbc.Col(
+                                    dbc.Button(
+                                        "Train Segmenter",
+                                        id="train-seg",
+                                        outline=True,
+                                    )
+                                ),
+                               dbc.Col(id = 'model-trained-alert',
+                                   children= dbc.Alert('Status: Untrained', color='dark')
+                                ),
+                           ]
+                           ),
+                            dbc.Row([
+                                dbc.Col(
+                                    dbc.Button(
+                                        "Segment Image Stack",
+                                        id="compute-seg",
+                                        outline=True,
                                     ),
-                            dbc.Button(
-                                    "Segment Image Stack",
-                                    id="compute-seg",
-                                    outline=True,
-                                    ),
+                                ),
+                                dbc.Col(id='seg-processed-alert',
+                                    children= dbc.Alert('Status: Not processed', color='dark')
+                                ),
 
                                 ],
                             ),
@@ -689,15 +706,17 @@ class mask_tasks():
         return mask
     
     @classmethod
-    def create_save_masks(self, masks_data: dict):
+    def create_save_masks(self, masks_data: dict, mask_output_dir=MASK_OUTPUT_DIR):
         """
         Create a mask file for each image in an image stack
         Args:
             masks_data: dict{image_index: [plotly_svg_shapes_for_index]}
+            mask_output_dir: str or pathlib.Path pointing to where save output
         
         Return:
             filenames of saved mask files (.dat files, with pixels labelled as class)
         """
+        mask_output_dir = pathlib.Path(mask_output_dir)
         mask_names = []
         print (masks_data.keys())
         for key in masks_data:
@@ -713,7 +732,7 @@ class mask_tasks():
                 # update mask to include new shape
                 masks[c_mask > 0] = c_mask[c_mask > 0]
 
-            mask_f_name = str(MASK_OUTPUT_DIR / 'n-{}'.format(key))
+            mask_f_name = str(mask_output_dir / 'n-{}'.format(key))
             print(mask_f_name)
             sav_return = np.savetxt(mask_f_name, masks)
             mask_names.append(mask_f_name)
@@ -765,17 +784,27 @@ def update_training_loss(n):
 @app.callback(
         [
             Output('debug-print','children'),
+            Output('experiment-store', 'data'),
+            Output('model-trained-alert', 'children'),
         ],
         [
             Input('train-seg','n_clicks')
         ],
         [
             State('masks', 'data'),
-            State('seg-dropdown', 'value')
+            State('seg-dropdown', 'value'),
+            State('experiment-store', 'data')
             ]
         )
-def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
+def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, experiment_store_data):
     """
+    Args:
+
+    Output:
+    debug_print_children: string to print logs
+    experiment_store_data: dict storing experimental records
+    model_trained_alert_children: update alert showing model is undergoing training
+
     Prepares data for segmentation job.
     1. Convert svg path to nparray of size nxnx3 (rgb image). 0 is unlabelled, user labelled class is
     increased by 1 (ie. user label class 0, this would be represented in the nparray as 1) This is because
@@ -789,18 +818,32 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
     4. Send job messages into job queue
     """
     # code from https://dash.plotly.com/annotations
+    
     ### don't fire if no selection is made ###
     if (train_seg_n_clicks is None) or (seg_dropdown_value is None):
         raise PreventUpdate
+    # create user directory to store users data/experiments
+    job_id = str(uuid.uuid4()) # create unique id for experiment
+    USER_NAME = request.authorization['username'] # needs to be run in a callback or we don't have access to 'app'
+    io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, job_id))
+    io_path.mkdir(parents=True, exist_ok=True)
+
+    MASK_OUTPUT_DIR = io_path / 'masks'
+    MASK_OUTPUT_DIR.mkdir(parents=True, exist_ok =True)
+    IM_TRAINING_DIR = io_path / 'images' / 'raw'
+    IM_TRAINING_DIR.mkdir(parents=True, exist_ok =True)
+    MODEL_DIR = io_path / 'models'
+    MODEL_DIR.mkdir(parents=True, exist_ok =True)
+
     #### Create masks from the svg shape data stored in the hidden div ####
     image_index_with_mask = list(masks_data.keys())
     debug = ''
-    mask_file_names = mask_tasks.create_save_masks(masks_data)
+    mask_file_names = mask_tasks.create_save_masks(masks_data, MASK_OUTPUT_DIR)
     print(mask_file_names)
 
     # save tiff series of images (only those that have at least one mask associated with them)
     for im_index in image_index_with_mask:
-        imageio.imsave(IM_OUTPUT_DIR / '{}_bead_pack.tif'.format(im_index), np_volume[int(im_index)])
+        imageio.imsave(IM_TRAINING_DIR / '{}_for_segmentation.tif'.format(im_index), np_volume[int(im_index)])
 
     # call ml_api to dispatch job to workers (blocking for now, future will probably have a dispatcher server to handle setting up the job queue, etc)
     print(job_dispatcher.__dir__())
@@ -810,7 +853,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
                 docker_uri = MODEL_DATABASE[seg_dropdown_value],
                 docker_cmd = 'python3 feature_generation.py',
                 kw_args = '/data/images /data/features',
-                amqp_url=AMQP_URL
+                amqp_url=AMQP_URL,
+                corr_id = job_id,
                 )
         feat_job.launchJob() 
 
@@ -820,6 +864,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
                 docker_cmd = 'python3 random_forest.py',
                 kw_args = '/data/masks /data/features /data/model',
                 amqp_url=AMQP_URL,
+                corr_id = job_id,
                 )
         feature_results = feat_job.monitorJob()
         #ml_api.j.createJob()
@@ -828,25 +873,47 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
         #ml_api.job_dispatcher.vaughan.launchJob()
         print(feature_results)
         print(seg_results)
+
     elif seg_dropdown_value == "MSD":
+        # preface with / as docker executable needs a path specific to its filesyste 
+        mask_dir_docker = '/' / MASK_OUTPUT_DIR
+        images_dir_docker = '/' / IM_TRAINING_DIR
+        model_dir_docker = '/' / MODEL_DIR
         seg_job = job_dispatcher.simpleJob('supervised segmentation, msd training',
                 deploy_location = 'local-vaughan',
                 docker_uri = MODEL_DATABASE[seg_dropdown_value],
                 docker_cmd = 'python Deploy.py',
-                kw_args = '/data/masks/ /data/images/ /data/model/',
+                kw_args = '{} {} {}'.format(mask_dir_docker, images_dir_docker, model_dir_docker),
                 amqp_url=AMQP_URL,
-                GPU = True
+                GPU = True,
+                corr_id = job_id
                 )
         seg_job.launchJob()
         print('launched segmentation on ml server')
-       # seg_results = seg_job.monitorJob()
-       # print('server has returned value: ')
-       # print(str(seg_results))
+        #seg_results = seg_job.monitorJob()
+        #print('server has returned value: ')
+        #print(str(seg_results))
+
+        experiment_record = {'timestamp': time(),
+                            'epochs_run': 200,
+                            'model': seg_dropdown_value,
+                            'final_loss': .001,
+                            'batch_size': 2,
+                            } 
+        experiment_store_data[job_id] = experiment_record
+        print(experiment_store_data)
             
-            
-    return ['']
+    print('returning')        
+    return ['', experiment_store_data, dbc.Alert('Status: Training', color='red')]
         
     #return [seg_results.decode('utf8')]
+@app.callback(
+        Output('none', 'data'),
+        Input('experiment-store', 'data'),
+        )
+def test_trigger(experiment_store_data):
+    print(experiment_store_data)
+    return ''
 
 @app.callback(
         [
@@ -858,19 +925,46 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value):
         ],
         [
             State('seg-dropdown', 'value'),
+            State('experiment-store', 'data'),
             ]
         )
-def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value):
+def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store_data):
+    '''
+    compute_seg_nclicks: dash type, if clicked triggers this func
+    seg_dropdown_value: Str, contains the str name of model to run
+    experiment_store_data: dict[dict], key: job_id, value: dict{job attributes}
+    '''
+
     if compute_seg_n_clicks is None:
         raise PreventUpdate
+    # create user directory to store users data/experiments
+
+    # find most recent job id (current experiment)
+    print(experiment_store_data)
+    job_id = sorted(experiment_store_data, key = lambda k: (experiment_store_data[k]['timestamp']))[0]
+    USER_NAME = request.authorization['username'] # needs to be run in a callback or we don't have access to 'app'
+    io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, job_id))
+    io_path.mkdir(parents=True, exist_ok=True)
+
+    IM_INPUT_DIR = io_path / 'images' / 'raw'
+    im_input_dir_dock = '/' / IM_INPUT_DIR
+    MODEL_INPUT_DIR = io_path / 'model' 
+    model_input_dir_dock = '/' / MODEL_INPUT_DIR
+    OUT_DIR = io_path / 'out'
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir_dock = '/' / OUT_DIR # when mounted in docker container where segmentation code lives, data will be mounted in root, so we need to have the right path
+    
+
+
     print('computing segmentation...')
     if seg_dropdown_value == "Random Forest":
         docker_cmd = "python3 segment.py"
         kw_args = '/' + SAMPLE_DATA+ " /data/model/random-forest.model /data/output"
         GPU = False
     elif (seg_dropdown_value == "MSD"):
+
         docker_cmd = "python Segment.py"
-        kw_args = "/"+SAMPLE_DATA+' /data/model/state_dict_net.pt /data/output'
+        kw_args = '{} {} {}'.format(im_input_dir_doc, model_input_dir_dock, out_dir_dock)
         GPU=True 
     deploy_job = job_dispatcher.simpleJob('supervised segmentation, random forest deploy',
             deploy_location = 'local-vaughan',
@@ -878,7 +972,8 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value):
             docker_cmd = docker_cmd,
             kw_args = kw_args,
             amqp_url=AMQP_URL,
-            GPU = GPU
+            GPU = GPU,
+            corr_id = job_id,
             )
    # ml_api.j.createJob()
     print(deploy_job.kw_args)
@@ -906,6 +1001,9 @@ meta = [
         children=[
             # Store for user created masks
             # data is a list of dicts describing shapes
+            dcc.Store(id='none', data=''),
+            dcc.Store(id='username', data=''),
+            dcc.Store(id='experiment-store', data={}),
             dcc.Store(id="masks", data={}),
             dcc.Store(id="classifier-store", data={}),
             dcc.Store(id="classifier-store-temp", data={}),
