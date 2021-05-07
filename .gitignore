@@ -8,5 +8,5 @@ dash-seg/data/features/*
 
 dash-seg/data/arc_data/*
 dash-seg/data/*.png
-dash-seg/mlexchange_store/*
+dash-seg/data/mlexchange_store/**/*
 
