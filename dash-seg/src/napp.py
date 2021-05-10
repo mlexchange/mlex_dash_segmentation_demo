@@ -54,13 +54,16 @@ DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 class_label_colormap = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"]
 class_labels = list(range(NUM_LABEL_CLASSES))
 SAMPLE_DATA = 'data/bead_pack.tif'
-SAMPLE_DATA = 'data/arc_data/arc_stack.tiff'
+#SAMPLE_DATA = 'data/arc_data/arc_stack.tiff'
 MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
 
 features_dict = {}
 # run if in docker compose service
 AMQP_URL = os.environ['AMQP_URL']
+
+### Initialize Connection to Work Queue
+workq = job_dispatcher.workQueue(AMQP_URL)
 
 # hardcoded model database as dict
 print('loaded database')
@@ -88,7 +91,6 @@ def color_to_class(c):
 
 def shapes_to_key(shapes):
     return json.dumps(shapes)
-
 
 def label_to_colors(
 img, colormap=px.colors.qualitative.Light24, alpha=128, color_class_offset=0):
@@ -294,6 +296,7 @@ segmentation = [
         )
         ]
 
+
 ### REACTIVE COMPONENTS FOR UPLOADING FIGURE ###
 @app.callback(
         Output('image-store', 'data'
@@ -493,6 +496,7 @@ sidebar_label = [
                                         #    {'label' : 'RandomForest', 'value': 'random_forest'},
                                         #    ],
                                         style={'min-width':'250px'},
+                                        value='MSD',
                                         ),
                                     ],
                                 ),
@@ -525,8 +529,8 @@ sidebar_label = [
                                         outline=True,
                                     )
                                 ),
-                               dbc.Col(id = 'model-trained-alert',
-                                   children= dbc.Alert('Status: Untrained', color='dark')
+                               dbc.Col(id = 'model-alert',
+                                   children= dbc.Alert(id='model-train-alert', children='Status: Untrained', color='dark')
                                 ),
                            ]
                            ),
@@ -758,34 +762,59 @@ training_results = [html.Div([
 @app.callback(
         [Output('training-results', 'figure'),
             Output('training-visible', 'hidden'),
+            Output('model-train-alert', 'children'),
+            Output('model-train-alert', 'color'),
             ],
         Input('update-training-loss', 'n_intervals'),
+        State('experiment-store', 'data')
         )
-def update_training_loss(n):
-    try:
-        loss_plot = imageio.imread('data/model/msd-losses.png')
-        loss_plot_fig= px.imshow(loss_plot)
-        width,height = loss_plot.shape[0:2]
-        loss_plot_fig.update_xaxes(
-        showgrid=False, showticklabels=False, zeroline=False
+
+def listen_for_results(n, experiment_store_data):
+    '''
+    monitor message queue with very basic Interval, updating
+    loss function and job status appropriately
+
+    '''
+    result=workq.get_logs()
+    # result will tuple (pika.spec.Basic.GetOK(), pika.spec.Basic.Properties, message body)
+
+    if result is not None:
+        print(result) # get job_id
+        current_job_id = result[1].correlation_id
+        print(current_job_id)
+
+        status_display ='Status: Trained'
+        status_color = 'green'
+
+        try:
+            loss_plot_path = pathlib.Path('data/mlexchange_store/admin')/current_job_id / 'models/msd-losses.png'
+            print(loss_plot_path)
+            loss_plot = imageio.imread(loss_plot_path)
+            loss_plot_fig= px.imshow(loss_plot)
+            width,height = loss_plot.shape[0:2]
+            loss_plot_fig.update_xaxes(
+            showgrid=False, showticklabels=False, zeroline=False
+                )
+            loss_plot_fig.update_yaxes(
+                showgrid=False,
+                scaleanchor="x",
+                showticklabels=False,
+                zeroline=False,
             )
-        loss_plot_fig.update_yaxes(
-            showgrid=False,
-            scaleanchor="x",
-            showticklabels=False,
-            zeroline=False,
-        )
-        return [loss_plot_fig, False]
-    except Exception as e:
-        loss_plot_fig = px.scatter([[0,0]])
+            return [loss_plot_fig, False, status_display, status_color]
+        except Exception as e:
+            print(e)
+            loss_plot_fig = px.scatter([[0,0]])
+        return [loss_plot_fig,True,status_display, status_color]
+    else:
+        return [dash.no_update, dash.no_update, dash.no_update, dash.no_update]
     
-    return [loss_plot_fig,True]
  
 @app.callback(
         [
             Output('debug-print','children'),
             Output('experiment-store', 'data'),
-            Output('model-trained-alert', 'children'),
+            Output('model-alert', 'children'),
         ],
         [
             Input('train-seg','n_clicks')
@@ -884,7 +913,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
                 docker_uri = MODEL_DATABASE[seg_dropdown_value],
                 docker_cmd = 'python Deploy.py',
                 kw_args = '{} {} {}'.format(mask_dir_docker, images_dir_docker, model_dir_docker),
-                amqp_url=AMQP_URL,
+                work_queue=workq,
                 GPU = True,
                 corr_id = job_id
                 )
@@ -895,6 +924,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
         #print(str(seg_results))
 
         experiment_record = {'timestamp': time(),
+                            'trained_bool':False,
+                            'segmented_bool':False,
                             'epochs_run': 200,
                             'model': seg_dropdown_value,
                             'final_loss': .001,
@@ -904,7 +935,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
         print(experiment_store_data)
             
     print('returning')        
-    return ['', experiment_store_data, dbc.Alert('Status: Training', color='red')]
+    return ['', experiment_store_data, dbc.Alert(id='model-train-alert', children='Status: Training', color='red')]
         
     #return [seg_results.decode('utf8')]
 @app.callback(

@@ -68,10 +68,12 @@ if __name__ == '__main__':
             ch.basic_ack(delivery_tag = method.delivery_tag)
 
         #now send message back
+            payload_back = {'job_status':'complete', 'logs': str(logs.stdout)}
+            payload_back = json.dumps(payload)
             ch.basic_publish(exchange='',
                     routing_key = properties.reply_to,
                     properties = pika.BasicProperties(correlation_id = properties.correlation_id),
-                    body=str(logs.stdout),
+                    body=payload_back,
                     )
             print('send logs back')
         except Exception as e:
