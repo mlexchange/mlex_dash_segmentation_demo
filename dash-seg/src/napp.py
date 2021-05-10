@@ -260,7 +260,7 @@ segmentation = [
                                                     id='image-slider',
                                                     min=0,
                                                     max=N_IMAGES,
-                                                    value = (N_IMAGES//2),
+                                                    value = 0,
                                                     updatemode='drag'
                                                     ),
                                                 html.Div(
@@ -299,13 +299,17 @@ segmentation = [
 
 ### REACTIVE COMPONENTS FOR UPLOADING FIGURE ###
 @app.callback(
-        Output('image-store', 'data'
-        ),
+        [Output('image-store', 'data'),
+            Output('image-slider', 'max'),
+            ],
+
         Input('upload-image', 'contents'),
         Input('upload-image', 'filename'),
         State('image-store', 'data'),
         )
 def image_upload(upload_image_contents, upload_image_filename,image_store_data):
+    if upload_image_contents is None:
+        raise PreventUpdate
     print('uploading data...')
     print(upload_image_contents)
     if upload_image_contents is not None:
@@ -313,7 +317,8 @@ def image_upload(upload_image_contents, upload_image_filename,image_store_data):
             content_type, content_string = c.split(',')
             image_store_data[n] = (content_type, content_string)
             print('storing: {} \n {}'.format(n,c))
-    return image_store_data     
+        image_slider_max = len(upload_image_filename)-1
+    return [image_store_data, image_slider_max]
         
 ### REACTIVE COMPONENTS FOR DISPLAY FIGURE ###
 @app.callback(
@@ -330,9 +335,11 @@ def image_upload(upload_image_contents, upload_image_filename,image_store_data):
             Input("seg-dropdown", "value"),
             Input('image-store', 'data'),
         ],
-        [State("masks", "data"),State('classified-image-store', 'data'), ],
+        [State("masks", "data"),State('classified-image-store', 'data'), 
+            State('experiment-store', 'data'),
+            ]
         )
-def update_figure(image_slider_value, any_label_class_button_value,show_segmentation_value,seg_dropdown_value,image_store_data, masks_data, classified_image_store_data):
+def update_figure(image_slider_value, any_label_class_button_value,show_segmentation_value,seg_dropdown_value,image_store_data, masks_data, classified_image_store_data, experiment_store_data):
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     
@@ -351,8 +358,8 @@ def update_figure(image_slider_value, any_label_class_button_value,show_segmenta
     # 1. a change in image slice (from slider)
     # 2. a "show masks" button toggled
     if len(image_store_data) >0:
-        im_cache = image_store_data[list(image_store_data.keys())[0]][1]
-        print(image_store_data[list(image_store_data.keys())[0]][0])
+        im_cache = image_store_data[list(image_store_data.keys())[image_slider_value]][1]
+        print(image_store_data[list(image_store_data.keys())[image_slider_value]][0])
     else:
         im_cache = None
     im = make_default_figure(
@@ -364,12 +371,17 @@ def update_figure(image_slider_value, any_label_class_button_value,show_segmenta
     if ("Show segmentation" in show_segmentation_value):
         print('showing seg')
 
+        # get most recent experiment job id
+
+        job_id = sorted(experiment_store_data, key = lambda k: (experiment_store_data[k]['timestamp']))[0]
+
         # read in image (too large to store all images in browser cache)
+        USER_NAME = request.authorization['username'] # needs to be run in a callback or we don't have access to 'app'
         try:
             if seg_dropdown_value== "Random Forest":
                 semi = imageio.imread('data/output/{}-classified.tif'.format(image_slider_value))
             elif seg_dropdown_value == "MSD":
-                semi = imageio.mimread('data/output/results.tif')[image_slider_value]
+                semi = imageio.mimread('data/mlexchange_store/{}/{}/out/results.tif'.format(USER_NAME, job_id))[image_slider_value]
 
         except:
             print('slice not yet segmented')
@@ -425,6 +437,7 @@ def store_masks(graph_relayoutData, image_slice, masks_data):
         if 'shapes' in graph_relayoutData.keys():
             masks_data[image_slice] = graph_relayoutData['shapes']
             #print(masks_data[image_slice][0].keys())
+        # change shape path if shape has been updated
         elif any(["shapes" in key for key in graph_relayoutData]):
             #print(masks_data[str(image_slice)])
             for key in graph_relayoutData:
@@ -710,12 +723,13 @@ class mask_tasks():
         return mask
     
     @classmethod
-    def create_save_masks(self, masks_data: dict, mask_output_dir=MASK_OUTPUT_DIR):
+    def create_save_masks(self, masks_data: dict, mask_output_dir=MASK_OUTPUT_DIR, image_shape_list=[IMAGES_SHAPE for i in range(100)]):
         """
         Create a mask file for each image in an image stack
         Args:
             masks_data: dict{image_index: [plotly_svg_shapes_for_index]}
             mask_output_dir: str or pathlib.Path pointing to where save output
+            image_shape_list: list, [n,2] the rows,cols of n images to be masked
         
         Return:
             filenames of saved mask files (.dat files, with pixels labelled as class)
@@ -723,15 +737,16 @@ class mask_tasks():
         mask_output_dir = pathlib.Path(mask_output_dir)
         mask_names = []
         print (masks_data.keys())
-        for key in masks_data:
+        for i, key in enumerate(masks_data):
             print('mask index: {}'.format(key))
             shapes = masks_data[key]
             print('mask shapes: {}'.format(shapes))
-            masks = np.zeros(IMAGES_SHAPE)
-            masks_image = np.ones( (*IMAGES_SHAPE, 3), dtype=np.uint8) ## assume rgb data
+            masks = np.zeros(image_shape_list[i])
+
+            masks_image = np.ones( (*image_shape_list[i], 3), dtype=np.uint8) ## assume rgb data
 
             for s in shapes:
-                c_mask = self._path_to_mask(s['path'], color_to_class(s['line']['color']), IMAGES_SHAPE)
+                c_mask = self._path_to_mask(s['path'], color_to_class(s['line']['color']), image_shape_list[i])
 
                 # update mask to include new shape
                 masks[c_mask > 0] = c_mask[c_mask > 0]
@@ -787,7 +802,9 @@ def listen_for_results(n, experiment_store_data):
         status_color = 'green'
 
         try:
-            loss_plot_path = pathlib.Path('data/mlexchange_store/admin')/current_job_id / 'models/msd-losses.png'
+            USER_NAME = request.authorization['username'] # needs to be run in a callback or we don't have access to 'app'
+
+            loss_plot_path = pathlib.Path('data/mlexchange_store/')/USER_NAME/current_job_id / 'models/msd-losses.png'
             print(loss_plot_path)
             loss_plot = imageio.imread(loss_plot_path)
             loss_plot_fig= px.imshow(loss_plot)
@@ -822,10 +839,11 @@ def listen_for_results(n, experiment_store_data):
         [
             State('masks', 'data'),
             State('seg-dropdown', 'value'),
-            State('experiment-store', 'data')
+            State('experiment-store', 'data'),
+            State('image-store', 'data')
             ]
         )
-def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, experiment_store_data):
+def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, experiment_store_data, image_store_data):
     """
     Args:
 
@@ -851,6 +869,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
     ### don't fire if no selection is made ###
     if (train_seg_n_clicks is None) or (seg_dropdown_value is None):
         raise PreventUpdate
+
     # create user directory to store users data/experiments
     job_id = str(uuid.uuid4()) # create unique id for experiment
     USER_NAME = request.authorization['username'] # needs to be run in a callback or we don't have access to 'app'
@@ -859,23 +878,40 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
 
     MASK_OUTPUT_DIR = io_path / 'masks'
     MASK_OUTPUT_DIR.mkdir(parents=True, exist_ok =True)
-    IM_TRAINING_DIR = io_path / 'images' / 'raw'
+    IM_TRAINING_DIR = io_path / 'images'
     IM_TRAINING_DIR.mkdir(parents=True, exist_ok =True)
     MODEL_DIR = io_path / 'models'
     MODEL_DIR.mkdir(parents=True, exist_ok =True)
 
-    #### Create masks from the svg shape data stored in the hidden div ####
+    #### save images who have a hand drawn mask
+    #### save the shape of those saved images for converting mask from path to array
+    im_shape_list = []
     image_index_with_mask = list(masks_data.keys())
+    im_list = []
+    if len(image_store_data) > 0:
+        for im_index in image_index_with_mask:
+            im_str = image_store_data[list(image_store_data.keys())[int(im_index)]][1]
+            im_decode = base64.b64decode(im_str)
+            im_bytes = io.BytesIO(im_decode)
+            im = PIL.Image.open(im_bytes).convert('L') #convert to grayscale
+
+            im_shape = (im.height, im.width)
+            imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(im_index), im)
+            im_shape_list.append(im_shape)
+    else: # no uploaded data, so use default
+        for im_index in image_index_with_mask:
+            im = np_volume[int(im_index)]
+            imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(im_index), im)
+            im_shape_list.append(im.shape[0:2])
+
+
+
+    #### Create masks from the svg shape data stored in the hidden div ####
     debug = ''
-    mask_file_names = mask_tasks.create_save_masks(masks_data, MASK_OUTPUT_DIR)
-    print(mask_file_names)
+    mask_file_names = mask_tasks.create_save_masks(masks_data, MASK_OUTPUT_DIR, im_shape_list)
 
     # save tiff series of images (only those that have at least one mask associated with them)
-    for im_index in image_index_with_mask:
-        imageio.imsave(IM_TRAINING_DIR / '{}_for_segmentation.tif'.format(im_index), np_volume[int(im_index)])
-
     # call ml_api to dispatch job to workers (blocking for now, future will probably have a dispatcher server to handle setting up the job queue, etc)
-    print(job_dispatcher.__dir__())
     if seg_dropdown_value == 'Random Forest':
         feat_job = job_dispatcher.simpleJob('supervised segmentation, feature generation',
                 deploy_location = 'local-vaughan',
@@ -957,9 +993,10 @@ def test_trigger(experiment_store_data):
         [
             State('seg-dropdown', 'value'),
             State('experiment-store', 'data'),
+            State('image-store', 'data')
             ]
         )
-def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store_data):
+def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store_data, image_store_data):
     '''
     compute_seg_nclicks: dash type, if clicked triggers this func
     seg_dropdown_value: Str, contains the str name of model to run
@@ -978,31 +1015,44 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     io_path.mkdir(parents=True, exist_ok=True)
 
     IM_INPUT_DIR = io_path / 'images' / 'raw'
-    im_input_dir_dock = '/' / IM_INPUT_DIR
-    MODEL_INPUT_DIR = io_path / 'model' 
-    model_input_dir_dock = '/' / MODEL_INPUT_DIR
+    IM_INPUT_DIR.mkdir(parents=True, exist_ok=True)
+    IM_INPUT_FILE = IM_INPUT_DIR/ 'segment_series.tif'
+    im_input_dir_dock = '/' / IM_INPUT_FILE
+    MODEL_INPUT_DIR = io_path / 'models' 
+    model_input_dir_dock = '/' / MODEL_INPUT_DIR/'state_dict_net.pt'
     OUT_DIR = io_path / 'out'
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_dir_dock = '/' / OUT_DIR # when mounted in docker container where segmentation code lives, data will be mounted in root, so we need to have the right path
     
-
+    print('exporting images')
+    if len(image_store_data) > 0:
+        im_list = []
+        for image_filename in image_store_data:
+            image_str = image_store_data[image_filename][1]
+            image = np.array(PIL.Image.open(io.BytesIO(base64.b64decode(image_str))).convert('L'))
+            im_list.append(image)
+        im_vol = np.r_[im_list]
+        imageio.volwrite(IM_INPUT_FILE, im_vol) 
+            #imageio.imsave(IM_INPUT_DIR / '{}_for_segmenting.tif', image)
+    else:
+        imageio.volwrite(IM_INPUT_FILE, np_volume) 
 
     print('computing segmentation...')
     if seg_dropdown_value == "Random Forest":
         docker_cmd = "python3 segment.py"
-        kw_args = '/' + SAMPLE_DATA+ " /data/model/random-forest.model /data/output"
+        kw_args = '/' + SAMPLE_DATA+ " /data/models/random-forest.model /data/output"
         GPU = False
     elif (seg_dropdown_value == "MSD"):
 
         docker_cmd = "python Segment.py"
-        kw_args = '{} {} {}'.format(im_input_dir_doc, model_input_dir_dock, out_dir_dock)
+        kw_args = '{} {} {}'.format(im_input_dir_dock, model_input_dir_dock, out_dir_dock)
         GPU=True 
     deploy_job = job_dispatcher.simpleJob('supervised segmentation, random forest deploy',
             deploy_location = 'local-vaughan',
             docker_uri = MODEL_DATABASE[seg_dropdown_value],
             docker_cmd = docker_cmd,
             kw_args = kw_args,
-            amqp_url=AMQP_URL,
+            work_queue=workq,
             GPU = GPU,
             corr_id = job_id,
             )
@@ -1010,9 +1060,9 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     print(deploy_job.kw_args)
     deploy_job.launchJob()
     print('sending images to server to be segmented')
-    deploy_results = deploy_job.monitorJob()
-    print('server has returned results: ')
-    print(deploy_results)
+    #deploy_results = deploy_job.monitorJob()
+    #print('server has returned results: ')
+    #print(deploy_results)
 
     # now read in deploy results and save them to the
     # classified image store
