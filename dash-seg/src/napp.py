@@ -555,8 +555,8 @@ sidebar_label = [
                                         outline=True,
                                     ),
                                 ),
-                                dbc.Col(id='seg-processed-alert',
-                                    children= dbc.Alert('Status: Not processed', color='dark')
+                                dbc.Col(id='seg-alert',
+                                    children= dbc.Alert(id = 'model-seg-alert', children='Status: Not processed', color='dark')
                                 ),
 
                                 ],
@@ -779,6 +779,8 @@ training_results = [html.Div([
             Output('training-visible', 'hidden'),
             Output('model-train-alert', 'children'),
             Output('model-train-alert', 'color'),
+            Output('model-seg-alert', 'children'),
+            Output('model-seg-alert', 'color'),
             ],
         Input('update-training-loss', 'n_intervals'),
         State('experiment-store', 'data')
@@ -795,11 +797,23 @@ def listen_for_results(n, experiment_store_data):
 
     if result is not None:
         print(result) # get job_id
+        print(json.loads(result[2])['job_type'])
+        response = json.loads(result[2])
+        job_type = response['job_type']
         current_job_id = result[1].correlation_id
         print(current_job_id)
+        if job_type == 'training':
+            training_status_display ='Status: Trained'
+            training_status_color = 'green'
+            segmentation_status_display= dash.no_update
+            segmentation_status_color= dash.no_update
+        elif job_type == 'deploy':
+            segmentation_status_display = 'Status: Segmented'
+            segmentation_status_color= 'green'
+            training_status_display = dash.no_update
+            training_status_color = dash.no_update
+            
 
-        status_display ='Status: Trained'
-        status_color = 'green'
 
         try:
             USER_NAME = request.authorization['username'] # needs to be run in a callback or we don't have access to 'app'
@@ -818,13 +832,13 @@ def listen_for_results(n, experiment_store_data):
                 showticklabels=False,
                 zeroline=False,
             )
-            return [loss_plot_fig, False, status_display, status_color]
+            return [loss_plot_fig, False, training_status_display, training_status_color, segmentation_status_display, segmentation_status_color]
         except Exception as e:
             print(e)
             loss_plot_fig = px.scatter([[0,0]])
-        return [loss_plot_fig,True,status_display, status_color]
+        return [loss_plot_fig,True,training_status_display, training_status_color, segmentation_status_display, segmentation_status_color]
     else:
-        return [dash.no_update, dash.no_update, dash.no_update, dash.no_update]
+        return [dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update]
     
  
 @app.callback(
@@ -924,6 +938,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
         feat_job.launchJob() 
 
         seg_job = job_dispatcher.simpleJob('supervised segmentation, random forest training',
+                job_type = 'training',
                 deploy_location = 'local-vaughan',
                 docker_uri = MODEL_DATABASE[seg_dropdown_value],
                 docker_cmd = 'python3 random_forest.py',
@@ -945,6 +960,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
         images_dir_docker = '/' / IM_TRAINING_DIR
         model_dir_docker = '/' / MODEL_DIR
         seg_job = job_dispatcher.simpleJob('supervised segmentation, msd training',
+                job_type = 'training',
                 deploy_location = 'local-vaughan',
                 docker_uri = MODEL_DATABASE[seg_dropdown_value],
                 docker_cmd = 'python Deploy.py',
@@ -985,6 +1001,7 @@ def test_trigger(experiment_store_data):
 @app.callback(
         [
         Output('classified-image-store', 'data'),
+        Output('seg-alert', 'children'),
         ],
         
         [
@@ -1048,6 +1065,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
         kw_args = '{} {} {}'.format(im_input_dir_dock, model_input_dir_dock, out_dir_dock)
         GPU=True 
     deploy_job = job_dispatcher.simpleJob('supervised segmentation, random forest deploy',
+            job_type = "deploy",
             deploy_location = 'local-vaughan',
             docker_uri = MODEL_DATABASE[seg_dropdown_value],
             docker_cmd = docker_cmd,
@@ -1068,7 +1086,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     # classified image store
     data = ''
         
-    return [data]
+    return [data, dbc.Alert(id='model-seg-alert', children='Status: Segmenting', color='red') ]
 
     # need to compute every image slice. I think we'll just
     # make something that generalizes to the MSD, where we have

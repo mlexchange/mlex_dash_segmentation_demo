@@ -121,6 +121,7 @@ class simpleJob():
     """
     def __init__(self, 
             job_description,
+            job_type,
             deploy_location,
             docker_uri,
             docker_cmd,
@@ -130,6 +131,7 @@ class simpleJob():
             corr_id = str(uuid.uuid4()), # if no id, create
             ):
         self.job_description = job_description
+        self.job_type = job_type
         self.deploy_location = deploy_location
         self.docker_uri = docker_uri
         self.docker_cmd = docker_cmd
@@ -141,6 +143,7 @@ class simpleJob():
 
         # create json payload
         payload = {'docker_uri':self.docker_uri,
+                'job_type': self.job_type,
                 'docker_cmd':self.docker_cmd,
                 'gpu': self.gpu,
                 'kw_args':self.kw_args,
