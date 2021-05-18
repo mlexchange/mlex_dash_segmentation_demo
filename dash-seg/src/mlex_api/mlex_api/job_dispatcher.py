@@ -1,6 +1,9 @@
 #job_dispatcher.py
 
 from abc import ABCMeta, abstractmethod
+import json
+import pika
+import uuid
 
 
 class JobInterface:
@@ -12,7 +15,7 @@ class JobInterface:
         self.code_to_executre_uri = code_to_execture_uri
         super().__init__()
 
-    @abstactmethod
+    @abstractmethod
     def createJob():
         """
         Create a Job object (assuming that we are within a kubernetes environment, Job is a k-Job)
@@ -60,3 +63,73 @@ class JobInterface:
         pass
     
         
+class simpleJob():
+    """ Simple job made for segmentation demo.
+    Create a job and then deploy it as part of a simple docker-compose service
+    """
+    def __init__(self, 
+            job_description,
+            deploy_location,
+            docker_uri,
+            docker_cmd,
+            kw_args,
+            amqp_url,
+            GPU = False
+            ):
+        self.job_description = job_description
+        self.deploy_location = deploy_location
+        self.docker_uri = docker_uri
+        self.docker_cmd = docker_cmd
+        self.kw_args = kw_args
+        self.gpu = GPU
+
+        self.response = None
+        self.corr_id = str(uuid.uuid4())
+
+        # create json payload
+        payload = {'docker_uri':self.docker_uri,
+                'docker_cmd':self.docker_cmd,
+                'gpu': self.gpu,
+                'kw_args':self.kw_args,
+                }
+        self.js_payload = json.dumps(payload)
+        params = pika.URLParameters(amqp_url)
+        self.connection = pika.BlockingConnection(params)
+        self.channel = self.connection.channel()
+        result =self.channel.queue_declare(queue='results', durable=True)
+        self.channel.queue_declare(queue='ml_tasks', durable=True)
+        self.callback_queue = result.method.queue 
+        self.channel.basic_consume(
+                queue=self.callback_queue,
+                on_message_callback=self._on_response,
+                )
+
+
+    def launchJob(self):
+        """
+        Send the job to a simple amqp message queue
+        wait for response
+        """
+        self.channel.basic_publish(
+                exchange='',
+                routing_key='ml_tasks',
+                body=self.js_payload,
+                properties=pika.BasicProperties(
+                    reply_to = self.callback_queue,
+                    correlation_id=self.corr_id,
+                    )
+                )
+        print('send job to queue')
+    def _on_response(self, ch, method, props, body):
+        if self.corr_id == props.correlation_id:
+            self.response = body
+
+    def monitorJob(self):
+        """
+        Blocking connection, return when job is finished
+        """
+        while self.response is None:
+            self.connection.process_data_events()
+        self.connection.close()
+        return self.response
+        pass
