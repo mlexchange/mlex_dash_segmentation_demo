@@ -26,12 +26,11 @@ RUN curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-serve
 COPY requirements.txt requirements.txt
 RUN pip3 install --upgrade pip &&\
     pip3 install -r requirements.txt 
-
+WORKDIR /app
 COPY ml_worker.sh ml_worker.sh
 COPY ml_worker.py ml_worker.py
 ENV PYTHONUNBUFFERED=1
 #CMD ["sleep", "1d"]
 
-CMD echo 'test'
 CMD python3 ml_worker.py
 #CMD ["bash", "ml_worker.sh"]

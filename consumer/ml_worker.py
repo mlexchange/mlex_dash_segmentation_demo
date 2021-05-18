@@ -68,20 +68,29 @@ if __name__ == '__main__':
             ch.basic_ack(delivery_tag = method.delivery_tag)
 
         #now send message back
+            payload_back = {
+                    'job_type': payload['job_type'],
+                    'job_status':'complete', 
+                    'logs': str(logs.stdout)}
+            payload_back = json.dumps(payload)
             ch.basic_publish(exchange='',
                     routing_key = properties.reply_to,
                     properties = pika.BasicProperties(correlation_id = properties.correlation_id),
-                    body=str(logs.stdout),
+                    body=payload_back,
                     )
             print('send logs back')
         except Exception as e:
             print('task failed, check logs')
             print(e)
+            print(str(e.stdout))
+            payload = {'error':e,
+                    'log':str(e.stdout)
+                    }
             ch.basic_ack(delivery_tag = method.delivery_tag)
             ch.basic_publish(exchange='',
                     routing_key = properties.reply_to,
                     properties = pika.BasicProperties(correlation_id = properties.correlation_id),
-                    body=str(e),
+                    body=payload,
                     ) #need to return something, or the dash app will hang and throw an error when the callback doesn't finish
     channel.basic_consume(queue="ml_tasks", on_message_callback=callback)
     print("Worker up. Waiting for tasks...")
