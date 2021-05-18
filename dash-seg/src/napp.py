@@ -654,6 +654,7 @@ msd_params = [
         )
 def update_learning_rate_slider(learning_rate_slider_value):
     return "Learning Rate: {}".format(learning_rate_slider_value)
+
 ### REACTIVE FOR SEGMENTATION PARAMETERS ###
 @app.callback(
         [
@@ -670,9 +671,6 @@ def additional_seg_features(seg_dropdown_value):
         return [msd_params]
     else:
         return ['']
-
-
-
 
 ### REACTIVE FOR SEGMENTATION ###
 #### HELPER COLLECTION OF FUNCTIONS PREPARING SEGMENTATION ####
