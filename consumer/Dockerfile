@@ -21,8 +21,8 @@ RUN apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io
 
 RUN apt-get install -y python3-pip\
     python3
-RUN curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.deb.sh | bash &&\
-    apt-get install -y rabbitmq-server
+#RUN curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.deb.sh | bash &&\
+#    apt-get install -y rabbitmq-server
 COPY requirements.txt requirements.txt
 RUN pip3 install --upgrade pip &&\
     pip3 install -r requirements.txt 
