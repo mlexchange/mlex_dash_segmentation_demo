@@ -178,7 +178,7 @@ class simpleJob():
         Blocking connection, return when job is finished
         """
         while self.response is None:
-            self.connection.process_data_events()
-        self.connection.close()
-        return self.response
+            #self.connection.process_data_events()
+        #self.connection.close()
+            return self.response
         pass
