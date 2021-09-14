@@ -7,6 +7,9 @@ import numpy as np
 import PIL.Image
 import joblib
 
+import json
+from model_validation import TrainingParameters, Metadata
+
 """ Train a random forest classifier
     Input: design matrix, labelled masks
     Output: trained model, its-a-pickle!
@@ -23,46 +26,53 @@ def img_to_ubyte_array(img):
     return ret_
 
 
-def fit_segmenter(labels, features, clf):
-    """
-    Segmentation using labeled parts of the image and a classifier.
-    Parameters
-    ----------
-    labels : ndarray of ints
-        Image of labels. Labels >= 1 correspond to the training set and
-        label 0 to unlabeled pixels to be segmented.
-    features : ndarray
-        Array of features, with the first dimension corresponding to the number
-        of features, and the other dimensions correspond to ``labels.shape``.
-    clf : classifier object
-        classifier object, exposing a ``fit`` and a ``predict`` method as in
-        scikit-learn's API, for example an instance of
-        ``RandomForestClassifier`` or ``LogisticRegression`` classifier.
-    Returns
-    -------
-    output : ndarray
-        Labeled array, built from the prediction of the classifier trained on
-        ``labels``.
-    clf : classifier object
-        classifier trained on ``labels``
-    Raises
-    ------
-    NotFittedError if ``self.clf`` has not been fitted yet (use ``self.fit``).
-    """
-    training_data = features[:, labels > 0].T
-    training_labels = labels[labels > 0].ravel()
-    clf.fit(training_data, training_labels)
-    data = features[:, labels == 0].T
-    predicted_labels = clf.predict(data)
-    output = np.copy(labels)
-    output[labels == 0] = predicted_labels
-    return output, clf
+# def fit_segmenter(labels, features, clf):
+#     """
+#     Segmentation using labeled parts of the image and a classifier.
+#     Parameters
+#     ----------
+#     labels : ndarray of ints
+#         Image of labels. Labels >= 1 correspond to the training set and
+#         label 0 to unlabeled pixels to be segmented.
+#     features : ndarray
+#         Array of features, with the first dimension corresponding to the number
+#         of features, and the other dimensions correspond to ``labels.shape``.
+#     clf : classifier object (a scikit model)
+#         classifier object, exposing a ``fit`` and a ``predict`` method as in
+#         scikit-learn's API, for example an instance of
+#         ``RandomForestClassifier`` or ``LogisticRegression`` classifier.
+#     Returns
+#     -------
+#     output : ndarray
+#         Labeled array, built from the prediction of the classifier trained on
+#         ``labels``.
+#     clf : classifier object
+#         classifier trained on ``labels``
+#     Raises
+#     ------
+#     NotFittedError if ``self.clf`` has not been fitted yet (use ``self.fit``).
+#     """
+#     # training process
+#     training_data = features[:, labels > 0].T
+#     training_labels = labels[labels > 0].ravel()
+#     clf.fit(training_data, training_labels)  
+#     
+#     # predicting process
+#     data = features[:, labels == 0].T
+#     predicted_labels = clf.predict(data)
+#     
+#     output = np.copy(labels)
+#     output[labels == 0] = predicted_labels
+#     
+#     return output, clf
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('mask_dir', help='path to mask directory')
     parser.add_argument('feature_dir', help = 'path to feature directory')
     parser.add_argument('model_dir', help = 'path to model (output) directory')
+    parser.add_argument('parameters', help='dictionary that contains training parameters')
 
     args = parser.parse_args()
 
@@ -84,10 +94,25 @@ if __name__ == "__main__":
     train_features = all_features[ all_mask>0,:]
     train_mask = all_mask[all_mask >0]
 
+    # Load training parameters
+    if args.parameters is not None:
+        parameters = TrainingParameters(**json.loads(args.parameters))
+        
+    print(f'parameters.oob_score: {parameters.oob_score}')
     ### CREATE RANDOM FOREST CLF ###
-    clf = RandomForestClassifier(n_estimators=50, n_jobs=-1, max_depth=8, max_samples=0.05)
+    #clf = RandomForestClassifier(n_estimators=50, oob_score=True, n_jobs=-1, max_depth=8, max_samples=0.05)
+    clf = RandomForestClassifier(n_estimators=parameters.n_estimators, 
+                                 oob_score=parameters.oob_score, n_jobs=-1, max_depth=parameters.max_depth, max_samples=0.05)
 
     clf.fit(train_features,train_mask)
+    if parameters.oob_score:
+        oob_error = 1 - clf.oob_score_
+        header = list(Metadata.__fields__)
+        with open('training_logs.txt','w') as f:
+            f.write(",".join(header) + "\n")
+            f.write(f'{oob_error}')
+            f.close()
+        
     model_output_name = model_dir / 'random-forest.model'
     joblib.dump(clf, model_output_name)
     print('trained random forest: {}'.format(model_output_name))

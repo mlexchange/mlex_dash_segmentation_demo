@@ -10,6 +10,8 @@ from joblib import Parallel, delayed
 import joblib
 import feature_generation
 
+from model_validation import TestingParameters
+import json
 
 
 """
@@ -25,10 +27,14 @@ if __name__ == "__main__":
     parser.add_argument('image_stack', help='image filepath')
     parser.add_argument('model_f', help='model filepath')
     parser.add_argument('output_dir', help='directory for output of classifier')
+    parser.add_argument('parameters', help='dictionary that contains testing parameters')
     args = parser.parse_args()
     MODEL_F = pathlib.Path(args.model_f)
     IMAGE_STACK = pathlib.Path(args.image_stack)
     OUTPUT_DIR = pathlib.Path(args.output_dir)
+    
+    # Load testing parameters
+    parameters = TestingParameters(**json.loads(args.parameters))
 
     # read in tiff stack to work on
     im_stack = imageio.volread(IMAGE_STACK)
@@ -37,20 +43,22 @@ if __name__ == "__main__":
     clf = joblib.load(MODEL_F)
     def seg_image(im,index):
         features = feature_generation.multiscale_basic_features(
-                im,
-                multichannel=False,
-                intensity=True,
-                edges=False,
-                texture=False,
-                )
+                                                                    im,
+                                                                    multichannel=False,
+                                                                    intensity=True,
+                                                                    edges=False,
+                                                                    texture=False,
+                                                                )
         features = features.reshape(features.shape[0], features.shape[1]*features.shape[2]).T
         output = clf.predict(features)
         output_im = output.reshape(im.shape) #reassemble list of masked pixels into an image
         output_f_name = OUTPUT_DIR / '{}-.dat'.format(index)
-        np.savetxt(str(output_f_name), output_im)
-        imageio.imsave(str(OUTPUT_DIR / '{}-classified.tif'.format(index)), output_im) 
-        print('classified: {}'.format(index))
-
+        if index % parameters.show_progress == 0:
+            np.savetxt(str(output_f_name), output_im)
+            imageio.imsave(str(OUTPUT_DIR / '{}-classified.tif'.format(index)), output_im) 
+            print('classified: {}'.format(index))
+    
+    # segmentation for all images
     Parallel(n_jobs=-1)(delayed(seg_image)(im_stack[i], i) for i in range(len(im_stack)))
 
 

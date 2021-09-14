@@ -42,27 +42,28 @@ def _mutiscale_basic_features_singlechannel(
     ----------
     """
     # computations are faster as float32
+    ncpu = -1  # number of CPU used for Parallel execution
     img = np.ascontiguousarray(skimage.img_as_float32(img))
     sigmas = np.logspace(
         np.log2(sigma_min),
         np.log2(sigma_max),
-        num=int(np.log2(sigma_max) - np.log2(sigma_min) + 1),
+        num=int(np.log2(sigma_max) - np.log2(sigma_min) + 1),  # number of features, 6 by default 
         base=2,
         endpoint=True,
     )
-    all_filtered = Parallel(n_jobs=-1, prefer="threads")(
+    all_filtered = Parallel(n_jobs=ncpu, prefer="threads")(
         delayed(filters.gaussian)(img, sigma) for sigma in sigmas
     )
     features = []
     if intensity:
         features += all_filtered
     if edges:
-        all_edges = Parallel(n_jobs=-1, prefer="threads")(
+        all_edges = Parallel(n_jobs=ncpu, prefer="threads")(
             delayed(filters.sobel)(filtered_img) for filtered_img in all_filtered
         )
         features += all_edges
     if texture:
-        all_texture = Parallel(n_jobs=-1, prefer="threads")(
+        all_texture = Parallel(n_jobs=ncpu, prefer="threads")(
             delayed(_texture_filter)(filtered_img) for filtered_img in all_filtered
         )
         features += itertools.chain.from_iterable(all_texture)
@@ -118,7 +119,7 @@ def multiscale_basic_features(
             )
             for dim in range(image.shape[-1])
         )
-        features = list(itertools.chain.from_iterable(all_results))
+        features = list(itertools.chain.from_iterable(all_results))  # we are not using this itertools yet!
     else:
         features = _mutiscale_basic_features_singlechannel(
             image,
@@ -146,7 +147,7 @@ if __name__ == '__main__':
                     'edges': False,
                     'texture': False}
 
-    for im in images_path.glob('*.tif'):
+    for im in images_path.glob('*.tif'):    # this only takes the labeled images (*_for_training.tif)
         im_name_root = im.name.strip(im.suffix)
         image = img_to_ubyte_array(im)
         features = multiscale_basic_features(

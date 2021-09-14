@@ -931,6 +931,10 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
         images_dir_docker = '/' / IM_TRAINING_DIR
         model_dir_docker = '/' / MODEL_DIR
         feature_dir_docker = '/' / FEATURE_DIR
+        
+        # parameters are hardcoded for the moment; they will be fetched from model-registry in the future.
+        parameters_training = {"n_estimators": 50, "oob_score": 1, "max_depth": 8}
+
         feat_job = job_dispatcher.simpleJob('supervised segmentation, feature generation',
                                             job_type='training',
                                             deploy_location='local-vaughan',
@@ -950,8 +954,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
                                            deploy_location='local-vaughan',
                                            docker_uri=MODEL_DATABASE[seg_dropdown_value],
                                            docker_cmd='python random_forest.py',
-                                           kw_args='{} {} {}'.format(mask_dir_docker, feature_dir_docker,
-                                                                     model_dir_docker),
+                                           kw_args='{} {} {} {}'.format(mask_dir_docker, feature_dir_docker,
+                                                                     model_dir_docker, parameters_training),
                                            work_queue=workq,
                                            GPU=False,
                                            corr_id=job_id
@@ -1099,7 +1103,8 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     if seg_dropdown_value == "Random Forest":
         model_input_dir_dock = '/' / MODEL_INPUT_DIR / 'random-forest.model'
         docker_cmd = "python segment.py"
-        kw_args = '{} {} {}'.format(im_input_dir_dock, model_input_dir_dock, out_dir_dock)
+        parameters_testing = {"show_progress": 20}
+        kw_args = '{} {} {} {}'.format(im_input_dir_dock, model_input_dir_dock, out_dir_dock, parameters_testing)
         # kw_args = '/' + SAMPLE_DATA+ " /data/models/random-forest.model /data/output"
         GPU = False
     elif (seg_dropdown_value == "MSD"):
