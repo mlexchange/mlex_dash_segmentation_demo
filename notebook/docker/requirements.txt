@@ -1,6 +1,9 @@
+pydantic
+Pillow
+joblib
 imageio
 matplotlib
-scikit_image
-scikit_learn
+scikit-image
+scikit-learn
 numpy
-
+json

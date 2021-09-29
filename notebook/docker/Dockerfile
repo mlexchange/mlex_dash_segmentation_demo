@@ -27,4 +27,8 @@ ENV PYTHONUNBUFFERED=1
 #RUN chmod +x /usr/bin/tini
 #ENTRYPOINT ["/usr/bin/tini", "--"]
 
-CMD ["jupyter", "notebook", "--port=8888", "--no-browser", "--ip=0.0.0.0", "--allow-root"]
+
+COPY model_validation.py model_validation.py
+COPY kmeans.py kmeans.py
+COPY segment.py segment.py
+CMD ["echo", "running kmeans"]
