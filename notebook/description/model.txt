@@ -1,0 +1,22 @@
+﻿{
+  "_id": "2",
+  "model_name": "kmeans",
+  "version": "1.0.0",
+  "type": "unsupervised",
+  "user": "mlexchange-team",
+  "uri": "https://www.xxx",
+  "application": [
+    "image_segmentation",
+    "classification"
+  ],
+  "description": "xxx",
+  "gui_parameters": [
+    {
+      "type": "int",
+      "name": "num-clusters",
+      "title": "number of clusters",
+      "value": "2"
+    }
+  ],
+  "cmd": []
+}

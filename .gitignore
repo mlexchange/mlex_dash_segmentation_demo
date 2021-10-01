@@ -10,3 +10,4 @@ dash-seg/data/arc_data/*
 dash-seg/data/*.png
 dash-seg/data/mlexchange_store/**/*
 
+kmeans/.*
