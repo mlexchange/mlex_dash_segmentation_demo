@@ -1,5 +1,4 @@
 ﻿{
-  "_id": "2",
   "model_name": "kmeans",
   "version": "1.0.0",
   "type": "unsupervised",
