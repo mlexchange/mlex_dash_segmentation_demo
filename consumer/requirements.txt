@@ -1,1 +1,7 @@
-pika
+# logging
+kafka-python
+kq
+pymongo
+# requests
+# pymongo
+# uuid
