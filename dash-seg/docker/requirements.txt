@@ -1,4 +1,4 @@
-vtk
+#vtk
 imageio
 dash_core_components
 plotly==4.10.0
@@ -19,10 +19,14 @@ joblib==0.15.1
 dash_bootstrap_components
 pims
 gunicorn
-dash-vtk
-itk==5.2rc1
+#dash-vtk
+#itk==5.2rc1
 dash-slicer>=0.2.0
-pika
+#pika
 dash-auth==1.3.2
 requests
 flask
+#torch
+kafka-python
+pymongo
+kq

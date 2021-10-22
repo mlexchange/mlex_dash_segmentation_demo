@@ -1,8 +1,8 @@
 #FROM tensorflow/tensorflow:latest-gpu
 #FROM nvcr.io/nvidia/tensorflow:20.03-tf2-py3
 #FROM tensorflow/tensorflow:latest-gpu-py3
-FROM python:3.7.10
-MAINTAINER ADAM GREEN
+FROM python:3.9
+MAINTAINER MLEXCHANGE-TEAM
 
 RUN ls
 COPY docker/requirements.txt requirements.txt
@@ -19,7 +19,7 @@ RUN pip3 install --upgrade pip &&\
     pip3 install -r requirements.txt 
 
 #CMD ["bash","call_defect.sh"]
-EXPOSE 8000
+#EXPOSE 8000
 
 WORKDIR /app/work
 ENV HOME /app/work

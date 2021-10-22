@@ -1,79 +1,72 @@
 version: '3'
 
-#env file is ./.env
 services:
-    front-end:
-        restart: "unless-stopped"
-        container_name: "fronty"
-        user: "${UID}:${GID}" #from .env file
-        build: 
-            context: 'dash-seg/'
-            dockerfile: 'docker/Dockerfile'
-        command: 'python src/napp.py'
-            #command: 'sleep 60000'
-        environment:
-            AMQP_URL: 'amqp://rabbit?connection_attempts=5&retry_delay=5'
-        depends_on:
-            - "rabbit"
-        volumes:
-            - ./dash-seg/data:/app/work/data
-            - ./dash-seg/src:/app/work/src
-        ports:
-            - '8050:8050'
-    rabbit:
-        restart: "unless-stopped"
-        image: 'rabbitmq:3-management'
-        ports:
-            - "5672:5672"
-            - "15672:15672"
+  front-end:
+    restart: "unless-stopped"
+    container_name: "fronty"
+    user: "${UID}:${GID}"
+    build:
+      context: 'dash-seg/'
+      dockerfile: 'docker/Dockerfile'
+    command: 'python src/napp.py'
+    depends_on:
+      - "zookeeper"
+    environment:
+      DATA_DIR: "${COMPOSE_PROJECT_NAME}_data-m"
+    volumes:
+      - ./dash-seg/data:/app/work/data
+      - ./dash-seg/src:/app/work/src
+    ports:
+      - '8050:8050'
 
-    consumer:
-        #        user: "${UID}:${GID}" #from .env file
-        restart: "unless-stopped"
-        container_name: "cons"
-        build:
-            context: "consumer"
-            #allow this container to launch sister containers
-        volumes:
-            - "/var/run/docker.sock:/var/run/docker.sock"
-            - "./consumer:/app"
-              #- "./dash-seg/data:/data"
-            - "data-m:/data"
-        environment:
-            AMQP_URL: 'amqp://rabbit?connection_attempts=5&retry_delay=5'
-            #AMQP_URL: 'amqp://guest:guest@rabbit'
-            DATA_DIR: "${COMPOSE_PROJECT_NAME}_data-m"
-        depends_on:
-            - "rabbit"
+  consumer:
+    restart: "unless-stopped"
+    container_name: "consumer-seg"
+    build:
+      context: 'consumer/'
+      dockerfile: 'Dockerfile'
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./consumer:/app"
+      - "data-m:/data"
+    depends_on:
+      - "zookeeper"
+
+  zookeeper:
+    image: arm64v8/zookeeper
+    container_name: "zookeeper"
+#    ports:
+#      - '2181:2181'
+    environment:
+      zk_id: "1"
+
+  kafka:
+    image: ligato/kafka-arm64
+    depends_on:
+      - zookeeper
+#    ports:
+#      - '9092:9092'
+    container_name: "kafka"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+
+  mongo:
+    image: mongo
+    restart: always
+    container_name: "mongodb"
+    working_dir: "/mongodbdata/"
+#    ports:
+#      - '27017:27017'
+    volumes:
+      - "./mongodbdata/:/data/db"
+    #environment
+    #  MONGO_INITDB_ROOT_USERNAME: root
+    #  MONGO_INITDB_ROOT_PASSWORD: example
+
 volumes: #create named dir and link it to the data folder, so all services can use
-    data-m:
-        driver: local
-        driver_opts:
-            type: "none"
-            device: "${PWD}/dash-seg/data/"
-            o: "bind"
-        
-
-
-        
-              #        #    ml:
-        #        build: './ml_backend/docker/'
-        #        ulimits:
-        #            memlock: -1
-        #            stack: 67108864
-        #        volumes:
-        #            - '${PWD}/ml_backend:/work/'
-        #        ports:
-        #            - '8006:8000'
-        #        shm_size: '1g'
-        #        runtime: nvidia
-        #        environment:
-        #            NVIDIA_VISIBLE_DEVICES: all
-        #            NVIDIA_DRIVER_CAPABILITIES: all
-        #        deploy:
-        #            resources:
-        #                reservations:
-        #                    devices:
-        #                        - capabilities:
-        #                            - gpu
-        #
+  data-m:
+    driver: local
+    driver_opts:
+      type: "none"
+      device: "${PWD}/dash-seg/data/"
+      o: "bind"
