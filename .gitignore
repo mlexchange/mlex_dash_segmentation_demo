@@ -1,5 +1,4 @@
 dash-seg/data/*.png
 dash-seg/data/mlexchange_store/**/*
 .DS_Store
-mongodbdata/*
 .gitignore
