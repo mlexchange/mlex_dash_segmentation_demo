@@ -3,6 +3,7 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_auth
+import dash_table
 import numpy as np
 ##### HELPER UTILS
 import helper_utils
@@ -20,9 +21,9 @@ CLASSIFIED_VOLUME = np.zeros(np_volume.shape)
 N_IMAGES = np_volume.shape[0]
 IMAGES_SHAPE = (np_volume.shape[1], np_volume.shape[2])
 # hardcoded model database as dict
-MODEL_DATABASE = {"Random Forest":"aasgreen/random-forest-dc",
-                "MSD": "aasgreen/msdnetwork-notebook",
-                "":"",
+MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
+                  "MSD": "mlexchange/msdnetwork-notebook",
+                  "K-Means": "mlexchange/k-means-dc",
                 }
 
 
@@ -124,6 +125,11 @@ segmentation = [
                                         id="download-button",
                                         outline=True,
                                     ),
+                                    dbc.Button(
+                                        "test api",
+                                        id="api-button",
+                                        outline=True,
+                                    ),
                                 ],
                                 size="lg",
                                 style={"width": "100%"},
@@ -204,6 +210,7 @@ sidebar_label = [
                                     dcc.Dropdown(id='deploy-dropdown',
                                                  options=[
                                                      {'label': 'Vaughan (GPU)', 'value': 'vaughan'},
+                                                     {'label': 'mlsandbox (cpu)', 'value': 'mlsandbox'},
                                                      {'label': 'Local (cpu)', 'value': 'local'},
                                                      {'label': 'NERSC', 'value': 'nersc'},
                                                      {'label': 'Lab IT Cluster', 'value': 'labit'},
@@ -302,6 +309,8 @@ random_forest_params = [
     ),
 ]
 
+
+
 # parameters for MSD
 msd_params = [
     dbc.FormGroup(
@@ -326,6 +335,55 @@ msd_params = [
     ),
 
 ]
+
+# parameters for K-Means
+kmeans_params = [
+    dbc.FormGroup(
+        [
+            html.H6(
+                id="K-Means",
+                className="card-title",
+            ),
+            dbc.Label(
+                id='n_clusters-output',
+                children="Number of Clusters: 2",
+                html_for="n-clusters",
+            ),
+            dcc.Slider(
+                id="n_clusters",
+                min=2,
+                max=10,
+                step=1,
+                value=2,
+            ),
+        ]
+    ),
+
+]
+
+
+# show table
+
+# job status display
+job_status_display = [
+    html.Div(
+        children=[
+            html.H5('List of jobs'),
+            dash_table.DataTable(
+                id='jobs_table',
+                columns=[
+                    {'name': 'Job ID', 'id': 'job_id'},
+                    {'name': 'Type', 'id': 'job_type'},
+                    {'name': 'Status', 'id': 'status'},
+                    {'name': 'Data directory', 'id': 'data_dir_id'}],
+                data = [],
+                hidden_columns = ['job_id', 'data_dir_id'],
+                row_selectable='single',
+                style_cell={'padding': '1rem'}),
+        ],
+    )
+]
+
 
 # training results
 training_results = [html.Div([
@@ -361,8 +419,33 @@ meta = [
             dcc.Store(id="features_hash", data=""),
             dcc.Store(id='current-image-num', data=0),
             dcc.Store(id='image-store', data={}),
+            dcc.Store(id='nothing', data=''),
         ],
     ),
     html.Div(id="download-dummy"),
     html.Div(id="download-image-dummy"),
 ]
+
+
+##### DEFINE LAYOUT ####
+app.layout = html.Div (
+        [
+            header,
+            dbc.Container(
+                [
+                    dbc.Row(
+                        [dbc.Col(segmentation, width=8), dbc.Col(sidebar_label, width=4)]
+                    ),
+                    dbc.Row(dbc.Col(html.P(id='debug-print', children=''))),
+                    dbc.Row(dbc.Col(training_results)),
+                    dbc.Row(dbc.Col(job_status_display)),
+                    dbc.Row(dbc.Col(meta)),
+                ]
+            ),
+
+        ]
+        )
+
+
+
+

@@ -6,6 +6,8 @@ import io
 import base64
 import PIL.Image
 import plotly.express as px
+import urllib
+import requests
 
 class_label_colormap = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"]
 
@@ -116,3 +118,41 @@ def make_default_figure(image_index, np_volume, shapes=[], stroke_color='#ff4f00
         zeroline=False,
     )
     return fig
+    
+    
+def get_job(user, mlex_app, job_type=None, deploy_location=None):
+    url = 'http://job-service:8080/api/v0/jobs?'
+    #url = 'http://host.docker.internal:8080/api/v0/jobs?'
+    if user:
+        url += ('&user='+user)
+    if mlex_app:
+        url += ('&mlex_app='+mlex_app)
+    if job_type:
+        url += ('&job_type='+job_type)
+    if deploy_location:
+        url += ('deploy_location'+deploy_location)
+    response = urllib.request.urlopen(url)
+    data = json.loads(response.read())
+    return data
+
+
+def post_job(job):
+    url = 'http://job-service:8080/api/v0/jobs'
+    #url = 'http://host.docker.internal:8080/api/v0/jobs'
+    job_dict = {"user": job.user,
+                "mlex_app": job.mlex_app,
+                "job_type": job.job_type,
+                "description": job.description,
+                "deploy_location": job.deploy_location,
+                "gpu": job.gpu,
+                "data_uri": job.data_uri,
+                "container_uri": job.container_uri,
+                "container_cmd": job.container_cmd,
+                "container_kwargs": job.container_kwargs
+               }
+    print(f'job dict\n{json.dumps(job_dict)}')
+    return requests.post(url, json=job_dict).status_code
+   
+   
+   
+   
