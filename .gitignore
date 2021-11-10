@@ -1,6 +1,5 @@
 dash-seg/data/*.png
 dash-seg/data/mlexchange_store/**/*
-.DS_Store
-.gitignore
-.env
-__pycache__
+dash-seg/src/__pycache__/*
+
+kmeans/.*
