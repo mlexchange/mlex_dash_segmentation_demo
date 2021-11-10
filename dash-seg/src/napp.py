@@ -298,8 +298,6 @@ def update_table(n):
     return data_table
 
 
-
-
 # @app.callback(
 #         [Output('training-results', 'figure'),
 #             Output('training-visible', 'hidden'),
@@ -560,7 +558,6 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     # create user directory to store users data/experiments
 
     # find most recent job id (current experiment)
-    print(experiment_store_data)
     data_dir_id = job_data[row[0]]["data_dir_id"]
     USER_NAME = request.authorization['username'] # needs to be run in a callback or we don't have access to 'app'
     io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, data_dir_id))
@@ -570,7 +567,6 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     IM_INPUT_DIR = io_path / 'images' / 'raw'
     IM_INPUT_DIR.mkdir(parents=True, exist_ok=True)
     IM_INPUT_FILE = IM_INPUT_DIR/ 'segment_series.tif'
-    print(f'raw image path: {IM_INPUT_FILE}')
     im_input_dir_dock = IM_INPUT_FILE
     MODEL_INPUT_DIR = io_path / 'models' 
     model_input_dir_dock = MODEL_INPUT_DIR/'state_dict_net.pt'
@@ -588,7 +584,6 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
         im_vol = np.r_[im_list]
         imageio.volwrite(IM_INPUT_FILE, im_vol) 
     else:
-        print(f'np_volume {np_volume}')
         imageio.volwrite(IM_INPUT_FILE, np_volume) 
     
     im_input_dir_dock = str(im_input_dir_dock)
