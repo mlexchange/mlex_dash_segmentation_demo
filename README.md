@@ -6,11 +6,7 @@ To run this demo, `docker-compose` the followings:
 -	mlex\_api  
 -  dash\_segmentation\_demo
 
-<<<<<<< HEAD
-Then build image of random forest model using command `make build_docker`.  
+Then build the image of random forest model using command `make build_docker`. (Currently only fully supports random forest model) 
 
 It supports asynchronous job submition and results showing. Choose which (completed) training to use for segment from the list. Simialrly, choose which (completed) segment (deploy) to show results.
-=======
-Then build the image of random forest model using command `make build_docker`. (Currently only fully supports random forest model)
  
->>>>>>> e7f839fc361639bd17b23cb1c25706f02a47e3ee
