@@ -946,7 +946,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
         print(f'feat_job\n{feat_job.job_type}\n{feat_job.description}\n{feat_job.deploy_location}\n{feat_job.gpu}\n{feat_job.data_uri}\n{feat_job.data_uri}\n{feat_job.container_uri}\n{feat_job.container_cmd}\n{feat_job.container_kwargs}\n')
         feat_job.launch_job()
         print('launched feature extraction on ml server')
-
+    
         docker_cmd="python random_forest.py"
         input_params = {"n_estimators": 50, "oob_score": True, "max_depth": 8}
         #kw_args='{} {} {} {}'.format(mask_dir_docker, feature_dir_docker, model_dir_docker, input_params)
@@ -1064,7 +1064,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
                      'parameters': meta_params,
                      'data_dir_id': data_dir_id
                     }
-
+    
     elif (seg_dropdown_value == "MSD"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
         docker_cmd = "python Segment.py"
@@ -1072,7 +1072,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
                      'parameters': meta_params,
                      'data_dir_id': data_dir_id
                     }
-
+    
     elif (seg_dropdown_value == "K-Means"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'kmeans.joblib'
         docker_cmd = "python segment.py"
