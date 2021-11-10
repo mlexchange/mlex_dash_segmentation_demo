@@ -1,0 +1,10 @@
+# Segmentation demo v2.0.0
+
+The fisrt version of image segmentation demo integrated with the model registry and the compute sevice manager.  
+To run this demo, `docker-compose` the followings in order:  
+-	model-registry  
+-	mlex\_api  
+-  dash\_segmentation\_demo
+
+Then build image of `make build_docker`
+ 
