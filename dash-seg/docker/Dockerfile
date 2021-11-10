@@ -1,6 +1,3 @@
-#FROM tensorflow/tensorflow:latest-gpu
-#FROM nvcr.io/nvidia/tensorflow:20.03-tf2-py3
-#FROM tensorflow/tensorflow:latest-gpu-py3
 FROM python:3.7.10
 MAINTAINER ADAM GREEN
 
