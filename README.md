@@ -6,5 +6,5 @@ To run this demo, `docker-compose` the followings in order:
 -	mlex\_api  
 -  dash\_segmentation\_demo
 
-Then build image of `make build_docker`
+Then build image of random forest model using command `make build_docker`.
  
