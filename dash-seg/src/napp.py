@@ -941,7 +941,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
                                             container_uri    = MODEL_DATABASE[seg_dropdown_value],
                                             container_cmd    = 'python feature_generation.py',
                                             container_kwargs = kw_args,
-                                           )
+                                          )
 
         print(f'feat_job\n{feat_job.job_type}\n{feat_job.description}\n{feat_job.deploy_location}\n{feat_job.gpu}\n{feat_job.data_uri}\n{feat_job.data_uri}\n{feat_job.container_uri}\n{feat_job.container_cmd}\n{feat_job.container_kwargs}\n')
         feat_job.launch_job()
@@ -949,8 +949,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
 
         docker_cmd="python random_forest.py"
         input_params = {"n_estimators": 50, "oob_score": True, "max_depth": 8}
-        # kw_args='{} {} {} {}'.format(mask_dir_docker, feature_dir_docker, model_dir_docker, input_params)
-        kw_args   = {'directories': [mask_dir_docker, feature_dir_docker, model_dir_docker],
+        #kw_args='{} {} {} {}'.format(mask_dir_docker, feature_dir_docker, model_dir_docker, input_params)
+        kw_args   = {'directories': [mask_dir_docker,feature_dir_docker,model_dir_docker],
                      'parameters': input_params,
                      'data_dir_id': data_dir_id
                     }
@@ -1090,7 +1090,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
                                         container_uri    = MODEL_DATABASE[seg_dropdown_value],
                                         container_cmd    = docker_cmd,
                                         container_kwargs = kw_args,
-                                       )
+                                      )
     print(seg_job.data_uri)
     seg_job.launch_job()
     print('sending images to server to be segmented')
