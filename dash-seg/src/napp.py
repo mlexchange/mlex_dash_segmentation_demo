@@ -928,33 +928,32 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
     # call ml_api to dispatch job to workers (blocking for now, future will probably have a dispatcher server to handle setting up the job queue, etc)
     if seg_dropdown_value == 'Random Forest':
         print('now doing random forest...')
-        kw_args = {'directories': [str(images_dir_docker), str(feature_dir_docker)],
-                   'parameters': {},
-                   'data_dir_id': data_dir_id
-                   }
-        feat_job = job_dispatcher.SimpleJob(user=USER,
-                                            job_type="feature generation",
-                                            description="",
-                                            deploy_location="local",
-                                            gpu=False,
-                                            data_uri=DATA_DIR,
-                                            container_uri=MODEL_DATABASE[seg_dropdown_value],
-                                            container_cmd='python feature_generation.py',
-                                            container_kwargs=kw_args,
-                                            )
+        kw_args   = {'directories': [ str(images_dir_docker), str(feature_dir_docker)],
+                     'parameters': {},
+                     'data_dir_id': data_dir_id
+                    }
+        feat_job = job_dispatcher.SimpleJob(user             = USER,
+                                            job_type         = "feature generation",
+                                            description      = "",
+                                            deploy_location  = "local",
+                                            gpu              = False,
+                                            data_uri         = DATA_DIR,
+                                            container_uri    = MODEL_DATABASE[seg_dropdown_value],
+                                            container_cmd    = 'python feature_generation.py',
+                                            container_kwargs = kw_args,
+                                           )
 
-        print(
-            f'feat_job\n{feat_job.job_type}\n{feat_job.description}\n{feat_job.deploy_location}\n{feat_job.gpu}\n{feat_job.data_uri}\n{feat_job.data_uri}\n{feat_job.container_uri}\n{feat_job.container_cmd}\n{feat_job.container_kwargs}\n')
+        print(f'feat_job\n{feat_job.job_type}\n{feat_job.description}\n{feat_job.deploy_location}\n{feat_job.gpu}\n{feat_job.data_uri}\n{feat_job.data_uri}\n{feat_job.container_uri}\n{feat_job.container_cmd}\n{feat_job.container_kwargs}\n')
         feat_job.launch_job()
         print('launched feature extraction on ml server')
 
-        docker_cmd = "python random_forest.py"
+        docker_cmd="python random_forest.py"
         input_params = {"n_estimators": 50, "oob_score": True, "max_depth": 8}
         # kw_args='{} {} {} {}'.format(mask_dir_docker, feature_dir_docker, model_dir_docker, input_params)
-        kw_args = {'directories': [mask_dir_docker, feature_dir_docker, model_dir_docker],
-                   'parameters': input_params,
-                   'data_dir_id': data_dir_id
-                   }
+        kw_args   = {'directories': [mask_dir_docker, feature_dir_docker, model_dir_docker],
+                     'parameters': input_params,
+                     'data_dir_id': data_dir_id
+                    }
 
     elif seg_dropdown_value == "MSD":
         # preface with / as docker executable needs a path specific to its filesyste 
@@ -1064,7 +1063,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
         kw_args   = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                      'parameters': meta_params,
                      'data_dir_id': data_dir_id
-                     }
+                    }
 
     elif (seg_dropdown_value == "MSD"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
@@ -1072,7 +1071,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
         kw_args   = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                      'parameters': meta_params,
                      'data_dir_id': data_dir_id
-                     }
+                    }
 
     elif (seg_dropdown_value == "K-Means"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'kmeans.joblib'
@@ -1080,17 +1079,17 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
         kw_args   = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                      'parameters': meta_params,
                      'data_dir_id': data_dir_id
-                     }
+                    }
 
-    seg_job = job_dispatcher.SimpleJob(user             = USER,
-                                       job_type         = "deploy",
-                                       description      = "",
-                                       deploy_location  = "local",
-                                       gpu              = False,
-                                       data_uri         = str(DATA_DIR),
-                                       container_uri    = MODEL_DATABASE[seg_dropdown_value],
-                                       container_cmd    = docker_cmd,
-                                       container_kwargs = kw_args,
+    seg_job = job_dispatcher.SimpleJob( user             = USER,
+                                        job_type         = "deploy",
+                                        description      = "",
+                                        deploy_location  = "local",
+                                        gpu              = False,
+                                        data_uri         = str(DATA_DIR),
+                                        container_uri    = MODEL_DATABASE[seg_dropdown_value],
+                                        container_cmd    = docker_cmd,
+                                        container_kwargs = kw_args,
                                        )
     print(seg_job.data_uri)
     seg_job.launch_job()
