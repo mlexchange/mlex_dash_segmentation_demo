@@ -1,12 +1,12 @@
 # Segmentation demo v2.0.0
 
-The fisrt version of image segmentation demo integrated with the model registry and the compute sevice manager.  
-To run this demo, `docker-compose` the followings:  
--	model-registry  
+The first version of the image segmentation demo integrated with the model registry and the compute sevice manager.  
+To run this demo, `docker-compose` the followings (in the order):  
+-	mlex\_model\_registry  
 -	mlex\_api  
--  dash\_segmentation\_demo
+-  mlex\_dash\_segmentation\_demo
 
-Then build the image of random forest model using command `make build_docker`. (Currently only fully supports random forest model) 
+Then build the image of random forest model using the command `make build_docker`. (Currently only fully supports random forest model) 
 
-It supports asynchronous job submition and results showing. Choose which (completed) training to use for segment from the list. Simialrly, choose which (completed) segment (deploy) to show results.
+It supports asynchronous job submissions and results showing: choose which (completed) training results from the list to use for segmenting. Similarly, choose which (completed) segmenting (deploy) results to show.
  

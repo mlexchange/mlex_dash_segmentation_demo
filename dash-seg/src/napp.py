@@ -297,65 +297,6 @@ def update_table(n):
             )
     return data_table
 
-
-# @app.callback(
-#         [Output('training-results', 'figure'),
-#             Output('training-visible', 'hidden'),
-#             Output('model-train-alert', 'children'),
-#             Output('model-train-alert', 'color'),
-#             Output('model-seg-alert', 'children'),
-#             Output('model-seg-alert', 'color'),
-#             ],
-#         Input('jobs_table','row_selectable'),
-#         Input('update-training-loss', 'n_intervals'),
-#         State('experiment-store', 'data')
-#         )
-# def listen_for_results(col, n, experiment_store_data):
-#     '''
-#     monitor job status in Mongo database, updating
-#     loss function and job status appropriately
-#     '''
-#     job_list = helper_utils.get_job(USER,'seg-demo')
-#     current_job = col
-#     print(f'current job: {current_job}')
-#     if bool(current_job):
-#         if current_job["status"] == 'completed':
-#             job_type = current_job["job_type"]
-#             if job_type == 'training':
-#                 training_status_display ='Status: Trained'
-#                 training_status_color = 'green'
-#                 segmentation_status_display= dash.no_update
-#                 segmentation_status_color= dash.no_update
-#             elif job_type == 'deploy':
-#                 segmentation_status_display = 'Status: Segmented'
-#                 segmentation_status_color= 'green'
-#                 training_status_display = dash.no_update
-#                 training_status_color = dash.no_update
-#             try:
-#                 USER_NAME = request.authorization['username'] # needs to be run in a callback or we don't have access to 'app'
-# 
-#                 loss_plot_path = pathlib.Path('data/mlexchange_store/')/USER_NAME/current_job / 'models/msd-losses.png'
-#                 print(loss_plot_path)
-#                 loss_plot = imageio.imread(loss_plot_path)
-#                 loss_plot_fig= px.imshow(loss_plot)
-#                 width,height = loss_plot.shape[0:2]
-#                 loss_plot_fig.update_xaxes(
-#                 showgrid=False, showticklabels=False, zeroline=False
-#                     )
-#                 loss_plot_fig.update_yaxes(
-#                     showgrid=False,
-#                     scaleanchor="x",
-#                     showticklabels=False,
-#                     zeroline=False,
-#                 )
-#                 return [loss_plot_fig, False, training_status_display, training_status_color, segmentation_status_display, segmentation_status_color]
-#             except Exception as e:
-#                 print(e)
-#                 loss_plot_fig = px.scatter([[0,0]])
-#             return [loss_plot_fig,True,training_status_display, training_status_color, segmentation_status_display, segmentation_status_color]
-#             pass
-#     return [dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update]
-
  
 @app.callback(
         [
@@ -695,34 +636,20 @@ def additional_seg_features(seg_dropdown_value):
         )
 def retrieve_values(n, children):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    param = {}
     if "api-button" in changed_id:
         #print(f'value from automatic GUIs\n{children}')
         for child in children['props']['children']:
-            print(f'child value\n{child["props"]["children"][1]["props"]["value"]}')
+            key   = child["props"]["children"][1]["props"]["key"]
+            value = child["props"]["children"][1]["props"]["value"]
+            print(f'child key\n{key}')
+            print(f'child value\n{value}')
+            param[key] = value
             #print(f'child metadata \n{child["props"]["children"][1]["props"]["value"]}')
-        
+        print(f'param dict {param}')
         return [""]
     else:
         return [""]
-
-
-# @app.callback(
-#         Output('nothing', 'data'),
-#         Input("api-button", "n_clicks"),
-#         )
-# def test_api(n):
-#     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-#     if "api-button" in changed_id:
-#         data = model_list_GET_call()
-#         print(f'test api\n{data}')
-#         conditions = {'model_name':'random_forest'}
-#         random_forest = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
-#         print(f'random forest\n{random_forest[0]["gui_parameters"]}')
-#         gui_item = JSONParameterEditor( _id={'type': 'parameter_editor'},   # pattern match _id (base id), name
-#                                  json_blob=random_forest[0]["gui_parameters"],
-#                                 )
-#         gui_item.init_callbacks(app)
-#         return ""
 
 
 
