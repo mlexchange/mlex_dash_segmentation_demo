@@ -1058,39 +1058,39 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
 
     print('computing segmentation...')
     if seg_dropdown_value == "Random Forest":
-        meta_params = {"show_progress": 1}  # not be able for empty
+        meta_params = {"show_progress": 1} # not be able for empty
         model_input_dir_dock = MODEL_INPUT_DIR / 'random-forest.model'
         docker_cmd = "python segment.py"
-        kw_args = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
-                   'parameters': meta_params,
-                   'data_dir_id': data_dir_id
-                   }
+        kw_args   = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
+                     'parameters': meta_params,
+                     'data_dir_id': data_dir_id
+                     }
 
     elif (seg_dropdown_value == "MSD"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
         docker_cmd = "python Segment.py"
-        kw_args = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
-                   'parameters': meta_params,
-                   'data_dir_id': data_dir_id
-                   }
+        kw_args   = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
+                     'parameters': meta_params,
+                     'data_dir_id': data_dir_id
+                     }
 
     elif (seg_dropdown_value == "K-Means"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'kmeans.joblib'
         docker_cmd = "python segment.py"
-        kw_args = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
-                   'parameters': meta_params,
-                   'data_dir_id': data_dir_id
-                   }
+        kw_args   = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
+                     'parameters': meta_params,
+                     'data_dir_id': data_dir_id
+                     }
 
-    seg_job = job_dispatcher.SimpleJob(user=USER,
-                                       job_type="deploy",
-                                       description="",
-                                       deploy_location="local",
-                                       gpu=False,
-                                       data_uri=str(DATA_DIR),
-                                       container_uri=MODEL_DATABASE[seg_dropdown_value],
-                                       container_cmd=docker_cmd,
-                                       container_kwargs=kw_args,
+    seg_job = job_dispatcher.SimpleJob(user             = USER,
+                                       job_type         = "deploy",
+                                       description      = "",
+                                       deploy_location  = "local",
+                                       gpu              = False,
+                                       data_uri         = str(DATA_DIR),
+                                       container_uri    = MODEL_DATABASE[seg_dropdown_value],
+                                       container_cmd    = docker_cmd,
+                                       container_kwargs = kw_args,
                                        )
     print(seg_job.data_uri)
     seg_job.launch_job()
