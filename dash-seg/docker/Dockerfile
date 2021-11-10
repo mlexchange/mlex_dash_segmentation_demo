@@ -1,5 +1,5 @@
 FROM python:3.9
-MAINTAINER TANNY CHAVEZ
+MAINTAINER THE MLEXCHANGE TEAM
 
 RUN ls
 COPY docker/requirements.txt requirements.txt
