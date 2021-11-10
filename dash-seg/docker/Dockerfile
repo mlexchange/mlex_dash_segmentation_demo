@@ -15,13 +15,11 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install --upgrade pip &&\
     pip3 install --timeout=2000 -r requirements.txt 
 
-#CMD ["bash","call_defect.sh"]
 EXPOSE 8000
 
 WORKDIR /app/work
 ENV HOME /app/work
 COPY src src
 ENV PYTHONUNBUFFERED=1
-
 
 CMD ["bash"]
