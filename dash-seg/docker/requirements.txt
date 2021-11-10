@@ -15,7 +15,7 @@ matplotlib
 scipy
 numpy
 scikit_image
-Pillow==7.1.2
+Pillow==8.3.2
 scikit_learn
 gunicorn==20.0.4
 pandas
