@@ -927,77 +927,34 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
     # save tiff series of images (only those that have at least one mask associated with them)
     # call ml_api to dispatch job to workers (blocking for now, future will probably have a dispatcher server to handle setting up the job queue, etc)
     if seg_dropdown_value == 'Random Forest':
-        # mask_dir_docker = '/' / MASK_OUTPUT_DIR
-        # images_dir_docker = '/' / IM_TRAINING_DIR
-        # model_dir_docker = '/' / MODEL_DIR
-        # feature_dir_docker = '/' / FEATURE_DIR
-        #
-        # # parameters are hardcoded for the moment; they will be fetched from model-registry in the future.
-        # parameters_training = {"n_estimators": 50, "oob_score": 1, "max_depth": 8}
-        #
-        # feat_job = job_dispatcher.simpleJob('supervised segmentation, feature generation',
-        #                                     job_type='training',
-        #                                     deploy_location='local-vaughan',
-        #                                     docker_uri=MODEL_DATABASE[seg_dropdown_value],
-        #                                     docker_cmd='python feature_generation.py',
-        #                                     kw_args='{} {}'.format(images_dir_docker,
-        #                                                            feature_dir_docker),
-        #                                     work_queue=workq,
-        #                                     GPU=False,
-        #                                     corr_id=job_id
-        #                                     )
-        # feat_job.launchJob()
-        # print('launched feature extraction on ml server')
-        # feature_results = feat_job.monitorJob()
-        # seg_job = job_dispatcher.simpleJob('supervised segmentation, random forest training',
-        #                                    job_type='training',
-        #                                    deploy_location='local-vaughan',
-        #                                    docker_uri=MODEL_DATABASE[seg_dropdown_value],
-        #                                    docker_cmd='python random_forest.py',
-        #                                    kw_args='{} {} {} {}'.format(mask_dir_docker, feature_dir_docker,
-        #                                                              model_dir_docker, parameters_training),
-        #                                    work_queue=workq,
-        #                                    GPU=False,
-        #                                    corr_id=job_id
-        #                                    )
-        # seg_job.launchJob()
-        # print('launched segmentation on ml server')
-        # # feat_job = job_dispatcher.simpleJob('supervised segmentation, feature generation',
-        # #         deploy_location = 'local-vaughan',
-        # #         docker_uri = MODEL_DATABASE[seg_dropdown_value],
-        # #         docker_cmd = 'python3 feature_generation.py',
-        # #         kw_args = '/data/images /data/features',
-        # #         amqp_url=AMQP_URL,
-        # #         corr_id = job_id,
-        # #         )
-        # # feat_job.launchJob()
-        # #
-        # # seg_job = job_dispatcher.simpleJob('supervised segmentation, random forest training',
-        # #         job_type = 'training',
-        # #         deploy_location = 'local-vaughan',
-        # #         docker_uri = MODEL_DATABASE[seg_dropdown_value],
-        # #         docker_cmd = 'python3 random_forest.py',
-        # #         kw_args = '/data/masks /data/features /data/model',
-        # #         amqp_url=AMQP_URL,
-        # #         corr_id = job_id,
-        # #         )
-        # # feature_results = feat_job.monitorJob()
-        # # #ml_api.j.createJob()
-        # # seg_job.launchJob()
-        # # seg_results = seg_job.monitorJob()
-        # # #ml_api.job_dispatcher.vaughan.launchJob()
-        # # print(feature_results)
-        # # print(seg_results)
-        # experiment_record = {'timestamp': time(),
-        #                      'trained_bool': False,
-        #                      'segmented_bool': False,
-        #                      'epochs_run': 200,
-        #                      'model': seg_dropdown_value,
-        #                      'final_loss': .001,
-        #                      'batch_size': 2,
-        #                      }
-        # experiment_store_data[job_id] = experiment_record
-        # print(experiment_store_data)
+        print('now doing random forest...')
+        kw_args = {'directories': [str(images_dir_docker), str(feature_dir_docker)],
+                   'parameters': {},
+                   'data_dir_id': data_dir_id
+                   }
+        feat_job = job_dispatcher.SimpleJob(user=USER,
+                                            job_type="feature generation",
+                                            description="",
+                                            deploy_location="local",
+                                            gpu=False,
+                                            data_uri=DATA_DIR,
+                                            container_uri=MODEL_DATABASE[seg_dropdown_value],
+                                            container_cmd='python feature_generation.py',
+                                            container_kwargs=kw_args,
+                                            )
+
+        print(
+            f'feat_job\n{feat_job.job_type}\n{feat_job.description}\n{feat_job.deploy_location}\n{feat_job.gpu}\n{feat_job.data_uri}\n{feat_job.data_uri}\n{feat_job.container_uri}\n{feat_job.container_cmd}\n{feat_job.container_kwargs}\n')
+        feat_job.launch_job()
+        print('launched feature extraction on ml server')
+
+        docker_cmd = "python random_forest.py"
+        input_params = {"n_estimators": 50, "oob_score": True, "max_depth": 8}
+        # kw_args='{} {} {} {}'.format(mask_dir_docker, feature_dir_docker, model_dir_docker, input_params)
+        kw_args = {'directories': [mask_dir_docker, feature_dir_docker, model_dir_docker],
+                   'parameters': input_params,
+                   'data_dir_id': data_dir_id
+                   }
 
     elif seg_dropdown_value == "MSD":
         # preface with / as docker executable needs a path specific to its filesyste 
@@ -1101,50 +1058,42 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
 
     print('computing segmentation...')
     if seg_dropdown_value == "Random Forest":
-        model_input_dir_dock = '/' / MODEL_INPUT_DIR / 'random-forest.model'
+        meta_params = {"show_progress": 1}  # not be able for empty
+        model_input_dir_dock = MODEL_INPUT_DIR / 'random-forest.model'
         docker_cmd = "python segment.py"
-        parameters_testing = {"show_progress": 20}
-        kw_args = '{} {} {} {}'.format(im_input_dir_dock, model_input_dir_dock, out_dir_dock, parameters_testing)
-        # kw_args = '/' + SAMPLE_DATA+ " /data/models/random-forest.model /data/output"
-        GPU = False
+        kw_args = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
+                   'parameters': meta_params,
+                   'data_dir_id': data_dir_id
+                   }
+
     elif (seg_dropdown_value == "MSD"):
-        model_input_dir_dock = '/' / MODEL_INPUT_DIR / 'state_dict_net.pt'
+        model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
         docker_cmd = "python Segment.py"
-        kw_args = '{} {} {}'.format(im_input_dir_dock, model_input_dir_dock, out_dir_dock)
-        GPU = False
-    deploy_job = job_dispatcher.simpleJob('supervised segmentation, random forest deploy',
-                                          job_type="deploy",
-                                          deploy_location='local-vaughan',
-                                          docker_uri=MODEL_DATABASE[seg_dropdown_value],
-                                          docker_cmd=docker_cmd,
-                                          kw_args=kw_args,
-                                          work_queue=workq,
-                                          GPU=GPU,
-                                          corr_id=job_id,
-                                          )
-    # ml_api.j.create
-    # if seg_dropdown_value == "Random Forest":
-    #     docker_cmd = "python3 segment.py"
-    #     kw_args = '/' + SAMPLE_DATA+ " /data/models/random-forest.model /data/output"
-    #     GPU = False
-    # elif (seg_dropdown_value == "MSD"):
-    #
-    #     docker_cmd = "python Segment.py"
-    #     kw_args = '{} {} {}'.format(im_input_dir_dock, model_input_dir_dock, out_dir_dock)
-    #     GPU=True
-    # deploy_job = job_dispatcher.simpleJob('supervised segmentation, random forest deploy',
-    #         job_type = "deploy",
-    #         deploy_location = 'local-vaughan',
-    #         docker_uri = MODEL_DATABASE[seg_dropdown_value],
-    #         docker_cmd = docker_cmd,
-    #         kw_args = kw_args,
-    #         work_queue=workq,
-    #         GPU = GPU,
-    #         corr_id = job_id,
-    #         )
-   # ml_api.j.createJob()
-    print(deploy_job.kw_args)
-    deploy_job.launchJob()
+        kw_args = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
+                   'parameters': meta_params,
+                   'data_dir_id': data_dir_id
+                   }
+
+    elif (seg_dropdown_value == "K-Means"):
+        model_input_dir_dock = MODEL_INPUT_DIR / 'kmeans.joblib'
+        docker_cmd = "python segment.py"
+        kw_args = {'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
+                   'parameters': meta_params,
+                   'data_dir_id': data_dir_id
+                   }
+
+    seg_job = job_dispatcher.SimpleJob(user=USER,
+                                       job_type="deploy",
+                                       description="",
+                                       deploy_location="local",
+                                       gpu=False,
+                                       data_uri=str(DATA_DIR),
+                                       container_uri=MODEL_DATABASE[seg_dropdown_value],
+                                       container_cmd=docker_cmd,
+                                       container_kwargs=kw_args,
+                                       )
+    print(seg_job.data_uri)
+    seg_job.launch_job()
     print('sending images to server to be segmented')
     #deploy_results = deploy_job.monitorJob()
     #print('server has returned results: ')
