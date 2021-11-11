@@ -124,12 +124,7 @@ segmentation = [
                                         "Download classifier",
                                         id="download-button",
                                         outline=True,
-                                    ),
-                                    dbc.Button(
-                                        "test api",
-                                        id="api-button",
-                                        outline=True,
-                                    ),
+                                    )
                                 ],
                                 size="lg",
                                 style={"width": "100%"},
@@ -429,22 +424,21 @@ meta = [
 
 ##### DEFINE LAYOUT ####
 app.layout = html.Div (
-        [
-            header,
-            dbc.Container(
-                [
-                    dbc.Row(
-                        [dbc.Col(segmentation, width=8), dbc.Col(sidebar_label, width=4)]
-                    ),
-                    dbc.Row(dbc.Col(html.P(id='debug-print', children=''))),
-                    dbc.Row(dbc.Col(training_results)),
-                    dbc.Row(dbc.Col(job_status_display)),
-                    dbc.Row(dbc.Col(meta)),
-                ]
-            ),
-
-        ]
-        )
+    [
+        header,
+        dbc.Container(
+            [
+                dbc.Row(
+                    [dbc.Col(segmentation, width=8), dbc.Col(sidebar_label, width=4)]
+                ),
+                dbc.Row(dbc.Col(html.P(id='debug-print', children=''))),
+                dbc.Row(dbc.Col(training_results)),
+                dbc.Row(dbc.Col(job_status_display)),
+                dbc.Row(dbc.Col(meta)),
+            ]
+        ),
+    ]
+)
 
 
 
