@@ -58,12 +58,11 @@ def image_upload(upload_image_contents, upload_image_filename, image_store_data)
     if upload_image_contents is None:
         raise PreventUpdate
     print('uploading data...')
-    print(upload_image_contents)
     if upload_image_contents is not None:
         for c, n in zip(upload_image_contents, upload_image_filename):
             content_type, content_string = c.split(',')
             image_store_data[n] = (content_type, content_string)
-            print('storing: {} \n {}'.format(n, c))
+            print('storing: {}'.format(n))
         image_slider_max = len(upload_image_filename) - 1
     return [image_store_data, image_slider_max]
 
@@ -82,6 +81,7 @@ def image_upload(upload_image_contents, upload_image_filename, image_store_data)
         Input('show-segmentation', 'value'),
         Input("seg-dropdown", "value"),
         Input('image-store', 'data'),
+        Input('stroke-width', 'value')
     ],
     [
         State("masks", "data"),
@@ -94,7 +94,8 @@ def image_upload(upload_image_contents, upload_image_filename, image_store_data)
     prevent_initial_call=True
 )
 def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, seg_dropdown_value,
-                  image_store_data, masks_data, classified_image_store_data, experiment_store_data, row, job_data):
+                  image_store_data, stroke_width, masks_data, classified_image_store_data, experiment_store_data,
+                  row, job_data):
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     # find label class value by finding button with the most recent click
@@ -115,6 +116,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
         im_cache = None
     im = helper_utils.make_default_figure(image_slider_value, np_volume, shapes,
                                           stroke_color=helper_utils.class_to_color(label_class_value),
+                                          stroke_width=stroke_width,
                                           image_cache=im_cache)
     if ("Show segmentation" in show_segmentation_value):
         # get most recent experiment job id
@@ -300,16 +302,31 @@ def update_table(n):
                                   job_id=job['uid'],
                                   job_type=job['job_type'],
                                   status=job['status'],
-                                  data_dir_id=job['container_kwargs']['data_dir_id'])
+                                  parameters= str(job['container_kwargs']['parameters']),
+                                  data_dir_id=job['container_kwargs']['data_dir_id'],
+                                  job_logs=job['container_logs'])
                               )
     return data_table
+
+
+@app.callback(
+    Output('job-logs', 'value'),
+    Input('update-training-loss', 'n_intervals'),
+    State('jobs_table', 'selected_rows'),
+    State('jobs_table', 'data')
+)
+def update_logs(n, row, job_data):
+    if row:
+        log = job_data[row[0]]["job_logs"]
+        if log:
+            return log
+    return " "
 
 
 @app.callback(
     [
         Output('debug-print', 'children'),
         Output('experiment-store', 'data'),
-        Output('model-alert', 'children'),
     ],
     [
         Input('train-seg', 'n_clicks')
@@ -470,7 +487,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
 
     experiment_store_data = []
     print('returning')
-    return ['', experiment_store_data, dbc.Alert(id='model-train-alert', children='Status: Training', color='red')]
+    return ['', experiment_store_data]
 
 
 @app.callback(
@@ -485,7 +502,6 @@ def test_trigger(experiment_store_data):
 @app.callback(
     [
         Output('classified-image-store', 'data'),
-        Output('seg-alert', 'children'),
     ],
 
     [
@@ -586,7 +602,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     # now read in deploy results and save them to the
     # classified image store
 
-    return ['', dbc.Alert(id='model-seg-alert', children='Status: Segmenting', color='red')]
+    return ['']
 
     # need to compute every image slice. I think we'll just
     # make something that generalizes to the MSD, where we have

@@ -46,6 +46,40 @@ app.title = "MLExchange Labeling | Image Segmentation"
 ### BEGIN DASH CODE ###
 header = templates.header()
 
+# job status display
+job_status_display = [
+    html.Div(
+        children=[
+            dash_table.DataTable(
+                id='jobs_table',
+                columns=[
+                    {'name': 'Job ID', 'id': 'job_id'},
+                    {'name': 'Type', 'id': 'job_type'},
+                    {'name': 'Status', 'id': 'status'},
+                    {'name': 'Parameters', 'id': 'parameters'},
+                    {'name': 'Data directory', 'id': 'data_dir_id'},
+                    {'name': 'Logs', 'id': 'job_logs'}
+                ],
+                data = [],
+                hidden_columns = ['job_id', 'data_dir_id', 'job_logs'],
+                row_selectable='single',
+                style_cell={'padding': '1rem'},
+                style_table={'height': '15rem', 'overflowY': 'auto'},
+                fixed_rows={'headers': True},
+                style_data_conditional=[
+                    {'if': {'column_id': 'status', 'filter_query': '{status} = completed'},
+                     'backgroundColor': 'green',
+                     'color': 'white'},
+                    {'if': {'column_id': 'status', 'filter_query': '{status} = failed'},
+                     'backgroundColor': 'red',
+                     'color': 'white'}
+                ]
+            ),
+
+        ],
+    )
+]
+
 # presents the image with slider
 segmentation = [
     dbc.Card(
@@ -124,7 +158,12 @@ segmentation = [
                                         "Download classifier",
                                         id="download-button",
                                         outline=True,
-                                    )
+                                    ),
+                                    dbc.Button(
+                                        "test api",
+                                        id="api-button",
+                                        outline=True,
+                                    ),
                                 ],
                                 size="lg",
                                 style={"width": "100%"},
@@ -136,15 +175,28 @@ segmentation = [
                 ]
             ),
         ]
-    )
+    ),
+    dbc.Card(
+        id="logs-card",
+        children=[
+            dbc.CardHeader("Job Logs"),
+            dbc.CardBody(
+                [
+                    dcc.Textarea(id='job-logs',
+                                 value='',
+                                 style={'width':'100%', 'height': '10rem'})
+                ]
+            )
+        ])
 ]
 
 # sidebar - labeling tools
 sidebar_label = [
     dbc.Card(
         id="sidebar-card",
+        style={"width": "100%"},
         children=[
-            dbc.CardHeader("Mask Tools"),
+            dbc.CardHeader("Annotation Tools"),
             dbc.CardBody(
                 [
                     html.H6("Label class", className="card-title"),
@@ -159,37 +211,34 @@ sidebar_label = [
                             )
                             for n, c in enumerate(class_labels)
                         ],
-                    ),
-                    html.Hr(),
+                        style={'margin-bottom': '1rem'}),
+                    html.Div([
+                        dbc.Label(
+                            "Width of annotation paintbrush",
+                            html_for="stroke-width"
+                        ),
+                        # Slider for specifying stroke width
+                        dcc.Slider(
+                            id="stroke-width",
+                            min=0,
+                            max=6,
+                            step=0.1,
+                            value=DEFAULT_STROKE_WIDTH,
+                            tooltip={"placement": "bottom", "always_visible": True},
+                        ),
+                    ]),
+                ]),
+            dbc.CardHeader("Model"),
+            dbc.CardBody(
+                [
                     dbc.Form(
                         [
-                            dbc.FormGroup(
-                                [
-                                    dbc.Label(
-                                        "Width of annotation paintbrush",
-                                        html_for="stroke-width",
-                                    ),
-                                    # Slider for specifying stroke width
-                                    dcc.Slider(
-                                        id="stroke-width",
-                                        min=0,
-                                        max=6,
-                                        step=0.1,
-                                        value=DEFAULT_STROKE_WIDTH,
-                                    ),
-                                ]
-                            ),
                             dbc.FormGroup(
                                 [
                                     dbc.Label('Choose Segmentation Model', className='mr-2'),
                                     dcc.Dropdown(id='seg-dropdown',
                                                  options=[
                                                      {"label": entry, "value": entry} for entry in MODEL_DATABASE],
-
-                                                 # options=[
-                                                 #    {'label': 'MSD', 'value': 'msd'},
-                                                 #    {'label' : 'RandomForest', 'value': 'random_forest'},
-                                                 #    ],
                                                  style={'min-width': '250px'},
                                                  value='MSD',
                                                  ),
@@ -214,53 +263,46 @@ sidebar_label = [
                                                  ),
                                 ],
                             ),
-
                             html.Hr(),
-                            dbc.Row(
+                            html.Div(
                                 [
-                                    dbc.Col(
-                                        dbc.Button(
-                                            "Train Segmenter",
-                                            id="train-seg",
-                                            outline=True,
-                                        )
-                                    ),
-                                    dbc.Col(id='model-alert',
-                                            children=dbc.Alert(id='model-train-alert', children='Status: Untrained',
-                                                               color='dark')
-                                            ),
-                                ]
-                            ),
-                            dbc.Row([
-                                dbc.Col(
                                     dbc.Button(
-                                        "Segment Image Stack",
+                                        "TRAIN",
+                                        id="train-seg",
+                                        outline=True,
+                                        size="lg",
+                                        style={'width':'45%'}
+                                    ),
+                                    dbc.Button(
+                                        "TEST",
                                         id="compute-seg",
                                         outline=True,
+                                        size="lg",
+                                        style={'width':'45%'}
                                     ),
-                                ),
-                                dbc.Col(id='seg-alert',
-                                        children=dbc.Alert(id='model-seg-alert', children='Status: Not processed',
-                                                           color='dark')
-                                        ),
-
-                            ],
+                                ],
+                                className='row',
+                                style={'align-items': 'center', 'justify-content': 'center'}
                             ),
 
                             dcc.Checklist(
                                 id="show-segmentation",
                                 options=[
                                     {
-                                        "label": "Show segmentation",
+                                        "label": "  Show segmentation",
                                         "value": "Show segmentation",
                                     }
                                 ],
                                 value=[],
-                            ),
-                        ]
-                    ),
-                ]
+                                style={'margin-top': '1rem', 'margin-bottom': '1rem'}
+                            )
+                            ]),
+                    ],
             ),
+            dbc.CardHeader("List of Jobs"),
+            dbc.CardBody([
+                dbc.Row(dbc.Col(job_status_display)),
+            ])
         ],
     ),
 ]
@@ -357,29 +399,6 @@ kmeans_params = [
 ]
 
 
-# show table
-
-# job status display
-job_status_display = [
-    html.Div(
-        children=[
-            html.H5('List of jobs'),
-            dash_table.DataTable(
-                id='jobs_table',
-                columns=[
-                    {'name': 'Job ID', 'id': 'job_id'},
-                    {'name': 'Type', 'id': 'job_type'},
-                    {'name': 'Status', 'id': 'status'},
-                    {'name': 'Data directory', 'id': 'data_dir_id'}],
-                data = [],
-                hidden_columns = ['job_id', 'data_dir_id'],
-                row_selectable='single',
-                style_cell={'padding': '1rem'}),
-        ],
-    )
-]
-
-
 # training results
 training_results = [html.Div([
     dcc.Graph(
@@ -387,7 +406,7 @@ training_results = [html.Div([
         ),
     dcc.Interval(
         id='update-training-loss',
-        interval=1*10000, # milliseconds
+        interval=1*2000, # milliseconds
         n_intervals=0,
         ),
     ],
@@ -424,21 +443,21 @@ meta = [
 
 ##### DEFINE LAYOUT ####
 app.layout = html.Div (
-    [
-        header,
-        dbc.Container(
-            [
-                dbc.Row(
-                    [dbc.Col(segmentation, width=8), dbc.Col(sidebar_label, width=4)]
-                ),
-                dbc.Row(dbc.Col(html.P(id='debug-print', children=''))),
-                dbc.Row(dbc.Col(training_results)),
-                dbc.Row(dbc.Col(job_status_display)),
-                dbc.Row(dbc.Col(meta)),
-            ]
-        ),
-    ]
-)
+        [
+            header,
+            dbc.Container(
+                [
+                    dbc.Row(
+                        [dbc.Col(segmentation, width=8), dbc.Col(sidebar_label, width=4)]
+                    ),
+                    dbc.Row(dbc.Col(html.P(id='debug-print', children=''))),
+                    dbc.Row(dbc.Col(training_results)),
+                    dbc.Row(dbc.Col(meta)),
+                ]
+            ),
+
+        ]
+        )
 
 
 
