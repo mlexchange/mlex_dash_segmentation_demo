@@ -1,14 +1,7 @@
-*~
-dash-seg/data/output/*
-dash-seg/data/model/*
-dash-seg/data/images/*
-dash-seg/data/masks/*
-dash-seg/data/features/*
-**/*secrets*
-
-dash-seg/data/arc_data/*
 dash-seg/data/*.png
 dash-seg/data/mlexchange_store/**/*
 dash-seg/src/__pycache__/*
 
 kmeans/.*
+__pycache__
+.DS_Store

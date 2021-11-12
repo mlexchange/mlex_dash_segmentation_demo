@@ -11,6 +11,7 @@ import requests
 
 class_label_colormap = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"]
 
+
 #### HELPER UTILS
 def dcm_to_np(dir_path):
     np_volume = imageio.volread(dir_path)
@@ -83,7 +84,7 @@ def look_up_seg(d, key):
     return img
 
 
-def make_default_figure(image_index, np_volume, shapes=[], stroke_color='#ff4f00', image_cache=None):
+def make_default_figure(image_index, np_volume, shapes=[], stroke_color='#ff4f00', stroke_width=3, image_cache=None):
     if image_cache is None:
         im = np_volume[image_index]
         width, height = im.shape[0:2]
@@ -104,6 +105,7 @@ def make_default_figure(image_index, np_volume, shapes=[], stroke_color='#ff4f00
             'dragmode': 'drawopenpath',
             'shapes': shapes,
             'newshape.line.color': stroke_color,
+            'newshape.line.width': stroke_width,
             'margin': {'l': 0, 'r': 0, 't': 0, 'b': 0},
         }
     )
@@ -118,19 +120,19 @@ def make_default_figure(image_index, np_volume, shapes=[], stroke_color='#ff4f00
         zeroline=False,
     )
     return fig
-    
-    
+
+
 def get_job(user, mlex_app, job_type=None, deploy_location=None):
     url = 'http://job-service:8080/api/v0/jobs?'
-    #url = 'http://host.docker.internal:8080/api/v0/jobs?'
+    # url = 'http://host.docker.internal:8080/api/v0/jobs?'
     if user:
-        url += ('&user='+user)
+        url += ('&user=' + user)
     if mlex_app:
-        url += ('&mlex_app='+mlex_app)
+        url += ('&mlex_app=' + mlex_app)
     if job_type:
-        url += ('&job_type='+job_type)
+        url += ('&job_type=' + job_type)
     if deploy_location:
-        url += ('deploy_location'+deploy_location)
+        url += ('deploy_location' + deploy_location)
     response = urllib.request.urlopen(url)
     data = json.loads(response.read())
     return data
@@ -138,7 +140,7 @@ def get_job(user, mlex_app, job_type=None, deploy_location=None):
 
 def post_job(job):
     url = 'http://job-service:8080/api/v0/jobs'
-    #url = 'http://host.docker.internal:8080/api/v0/jobs'
+    # url = 'http://host.docker.internal:8080/api/v0/jobs'
     job_dict = {"user": job.user,
                 "mlex_app": job.mlex_app,
                 "job_type": job.job_type,
@@ -149,10 +151,9 @@ def post_job(job):
                 "container_uri": job.container_uri,
                 "container_cmd": job.container_cmd,
                 "container_kwargs": job.container_kwargs
-               }
+                }
     print(f'job dict\n{json.dumps(job_dict)}')
     return requests.post(url, json=job_dict).status_code
-   
-   
-   
-   
+
+
+
