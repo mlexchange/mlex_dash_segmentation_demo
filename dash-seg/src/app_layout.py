@@ -158,12 +158,7 @@ segmentation = [
                                         "Download classifier",
                                         id="download-button",
                                         outline=True,
-                                    ),
-                                    dbc.Button(
-                                        "test api",
-                                        id="api-button",
-                                        outline=True,
-                                    ),
+                                    )
                                 ],
                                 size="lg",
                                 style={"width": "100%"},
