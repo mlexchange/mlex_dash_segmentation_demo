@@ -654,8 +654,3 @@ def additional_seg_features(seg_dropdown_value):
 
 if __name__ == "__main__":
     app.run_server(debug=True, host='0.0.0.0')
-    print('Test api...')
-    print(str(model_list_GET_call()))
-
-
-
