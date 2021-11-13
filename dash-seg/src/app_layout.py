@@ -204,17 +204,17 @@ segmentation = [
 # sidebar - labeling tools
 sidebar_label = [
     dbc.Card(
-            id="msg-card",
-            children=[
-                dbc.CardHeader("Message"),
-                dbc.CardBody(
-                    [
-                        dcc.Textarea(id='msg-display',
-                                     value='',
-                                     style={'width':'100%', 'height': '3rem'})
-                    ]
-                )
-            ]),
+        id="msg-card",
+        children=[
+            dbc.CardHeader("Message"),
+            dbc.CardBody(
+                [
+                    dcc.Textarea(id='msg-display',
+                                 value='',
+                                 style={'width': '100%', 'height': '3rem'})
+                ]
+            )
+        ]),
     dbc.Card(
         id="sidebar-card",
         style={"width": "100%"},
