@@ -1,13 +1,19 @@
-import imageio
-import matplotlib.pyplot as plt
-import json
-import numpy as np
 import io
+import json
+import sys
+if sys.version_info[0] < 3:
+    from StringIO import StringIO
+else:
+    from io import StringIO
+
 import base64
+import imageio
+import numpy as np
+import pandas as pd
 import PIL.Image
 import plotly.express as px
-import urllib
 import requests
+import urllib
 
 class_label_colormap = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"]
 
@@ -119,6 +125,17 @@ def make_default_figure(image_index, np_volume, shapes=[], stroke_color='#ff4f00
         showticklabels=False,
         zeroline=False,
     )
+    return fig
+
+
+def generate_figure(log, start):
+    end = log.find('number of network parameters')
+    if end == -1:
+        end = len(log)
+    log = log[start:end]
+    df = pd.read_csv(StringIO(log.replace('\n\n','\n')), sep=',')
+    fig = px.line(df)
+    fig.update_layout(xaxis_title="epoch", yaxis_title="loss", margin=dict(l=20, r=20, t=20, b=20))
     return fig
 
 
