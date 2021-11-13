@@ -1,36 +1,28 @@
 # LIBRARIES
-import plotly.express as px
+import base64
+import io
+import json
+import os
+import pathlib
+import re
+
 import dash
 from dash.dependencies import Input, Output, State, MATCH, ALL
 from dash.exceptions import PreventUpdate
-import dash_html_components as html
-import dash_core_components as dcc
-import dash_bootstrap_components as dbc
+import imageio
 from flask import request
-
+import numpy as np
+import PIL.Image
+import plotly.graph_objects as go
 from skimage import draw
 import skimage
-import base64
-import PIL.Image
-import imageio
-
-import os
-import io
-import numpy as np
-import re
-import pathlib
-from time import time
-
-import uuid
-import json
 import urllib.request
-import requests
+import uuid
 
 import job_dispatcher
 from targeted_callbacks import targeted_callback
 from kwarg_editor import JSONParameterEditor
 import helper_utils
-
 from app_layout import header, segmentation, sidebar_label, random_forest_params, kmeans_params, \
     msd_params, training_results, meta, app, np_volume, MODEL_DATABASE, IMAGES_SHAPE
 
@@ -146,7 +138,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
 
         semipng = img_array_to_pil_image(semi)
         semipng.save('data/printcolor.png')
-        print(semipng)
+
         width, height = (semi.shape[0], semi.shape[1])
         im.add_layout_image(
             dict(
@@ -186,22 +178,14 @@ def store_masks(graph_relayoutData, image_slice, masks_data):
     if graph_relayoutData is not None:
         if 'shapes' in graph_relayoutData.keys():
             masks_data[image_slice] = graph_relayoutData['shapes']
-            # print(masks_data[image_slice][0].keys())
         # change shape path if shape has been updated
         elif any(["shapes" in key for key in graph_relayoutData]):
-            # print(masks_data[str(image_slice)])
             for key in graph_relayoutData:
                 if 'shapes' in key:
-                    # print('key: {}'.format(key))
                     # get index of edited shape
                     shape_index_re = re.compile('shapes\[(\d*)\].path')  # fragile, probably break on dash update
                     shape_index = int(shape_index_re.match(key).group(1))
-                    # print(shapes[shape_index])
-                    # print('modified...')
-                    # print(graph_relayoutData[key])
                     masks_data[str(image_slice)][shape_index]['path'] = graph_relayoutData[key]
-
-            # print(graph_relayoutData[key])
         else:
             return dash.no_update
     return [masks_data]
@@ -288,11 +272,18 @@ class mask_tasks():
         return mask_names
 
 
+### REACTIVE COMPONENTS FOR TABLE, LOGS, AND PLOT GENERATION ###
 @app.callback(
-    Output('jobs_table', 'data'),
+    [
+        Output('jobs_table', 'data'),
+        Output('show-plot', 'is_open'),
+        Output('loss-plot', 'figure'),
+        Output('job-logs', 'value')
+    ],
     Input('update-training-loss', 'n_intervals'),
+    State('jobs_table', 'selected_rows'),
 )
-def update_table(n):
+def update_table(n, row):
     job_list = helper_utils.get_job(USER, 'seg-demo')
     data_table = []
     if job_list is not None:
@@ -302,25 +293,20 @@ def update_table(n):
                                   job_id=job['uid'],
                                   job_type=job['job_type'],
                                   status=job['status'],
+                                  model=job['description'],
                                   parameters= str(job['container_kwargs']['parameters']),
                                   data_dir_id=job['container_kwargs']['data_dir_id'],
                                   job_logs=job['container_logs'])
                               )
-    return data_table
-
-
-@app.callback(
-    Output('job-logs', 'value'),
-    Input('update-training-loss', 'n_intervals'),
-    State('jobs_table', 'selected_rows'),
-    State('jobs_table', 'data')
-)
-def update_logs(n, row, job_data):
+    log = " "
     if row:
-        log = job_data[row[0]]["job_logs"]
+        log = data_table[row[0]]["job_logs"]
         if log:
-            return log
-    return " "
+            start = log.find('loss')
+            if start > -1:
+                fig = helper_utils.generate_figure(log,start)
+                return data_table, True, fig, log
+    return data_table, False, go.Figure(go.Scatter(x=[], y=[])), log
 
 
 @app.callback(
@@ -441,7 +427,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
                    }
         feat_job = job_dispatcher.SimpleJob(user=USER,
                                             job_type="feature generation",
-                                            description="",
+                                            description="Random Forest",
                                             deploy_location="local",
                                             gpu=False,
                                             data_uri=DATA_DIR,

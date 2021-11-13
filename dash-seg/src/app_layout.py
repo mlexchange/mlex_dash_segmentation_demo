@@ -56,6 +56,7 @@ job_status_display = [
                     {'name': 'Job ID', 'id': 'job_id'},
                     {'name': 'Type', 'id': 'job_type'},
                     {'name': 'Status', 'id': 'status'},
+                    {'name': 'Model', 'id': 'model'},
                     {'name': 'Parameters', 'id': 'parameters'},
                     {'name': 'Data directory', 'id': 'data_dir_id'},
                     {'name': 'Logs', 'id': 'job_logs'}
@@ -170,6 +171,21 @@ segmentation = [
                 ]
             ),
         ]
+    ),
+    dbc.Collapse(
+        id = 'show-plot',
+        children = dbc.Card(
+            id="plot-card",
+            children=[
+                dbc.CardHeader("Loss Plot"),
+                dbc.CardBody(
+                    [
+                        dcc.Graph(id='loss-plot',
+                                  style={'width':'100%', 'height': '20rem'})
+                    ]
+                )
+            ]
+        )
     ),
     dbc.Card(
         id="logs-card",
