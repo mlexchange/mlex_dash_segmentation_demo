@@ -1,15 +1,4 @@
-import json
 import helper_utils
-import uuid
-import requests
-import threading, logging, time
-import subprocess
-import os
-import sys
-import kq
-from kafka import KafkaProducer
-from kq import Queue
-from kq.job import Job
 
 
 class SimpleJob:
