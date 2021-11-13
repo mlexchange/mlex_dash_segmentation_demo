@@ -81,7 +81,7 @@ def image_upload(upload_image_contents, upload_image_filename, image_store_data)
         State('experiment-store', 'data'),
         State('jobs_table', 'selected_rows'),
         State('jobs_table', 'data')
-    ],
+     ],
 )
 def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, seg_dropdown_value,
                   image_store_data, stroke_width, masks_data, classified_image_store_data, experiment_store_data,
@@ -110,7 +110,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                                           image_cache=im_cache)
     if ("Show segmentation" in show_segmentation_value):
         # get most recent experiment job id
-        model_name = job_data[row[0]]["model_name"]
+        model_name  = job_data[row[0]]["model_name"]
         data_dir_id = job_data[row[0]]["data_dir_id"]
         job_id = data_dir_id
         # read in image (too large to store all images in browser cache)
@@ -416,9 +416,9 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
 
     if seg_dropdown_value == 'Random Forest':
         print('now doing random forest...')
-        kw_args = {'model_name': seg_dropdown_value,
+        kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [str(images_dir_docker), str(feature_dir_docker)],
-                   'parameters': {},
+                   'parameters':  {},
                    'data_dir_id': data_dir_id
                    }
         feat_job = job_dispatcher.SimpleJob(user=USER,
@@ -549,7 +549,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
         meta_params = {"show_progress": 1}  # not be able for empty
         model_input_dir_dock = MODEL_INPUT_DIR / 'random-forest.model'
         docker_cmd = "python segment.py"
-        kw_args = {'model_name': seg_dropdown_value,
+        kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
                    'data_dir_id': data_dir_id
@@ -558,7 +558,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     elif (seg_dropdown_value == "MSD"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
         docker_cmd = "python Segment.py"
-        kw_args = {'model_name': seg_dropdown_value,
+        kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
                    'data_dir_id': data_dir_id
@@ -567,7 +567,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     elif (seg_dropdown_value == "K-Means"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'kmeans.joblib'
         docker_cmd = "python segment.py"
-        kw_args = {'model_name': seg_dropdown_value,
+        kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
                    'data_dir_id': data_dir_id
