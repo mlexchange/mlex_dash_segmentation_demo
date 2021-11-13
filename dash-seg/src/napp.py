@@ -112,7 +112,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
         # get most recent experiment job id
         model_name  = job_data[row[0]]["model_name"]
         data_dir_id = job_data[row[0]]["data_dir_id"]
-        job_id = data_dir_id
+        job_id      = data_dir_id
         # read in image (too large to store all images in browser cache)
         USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
         try:
