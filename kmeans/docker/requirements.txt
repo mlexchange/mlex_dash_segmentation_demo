@@ -1,9 +1,0 @@
-pydantic
-Pillow
-joblib
-imageio
-matplotlib
-scikit-image
-scikit-learn
-numpy
-json
