@@ -56,6 +56,7 @@ job_status_display = [
                     {'name': 'Job ID', 'id': 'job_id'},
                     {'name': 'Type', 'id': 'job_type'},
                     {'name': 'Status', 'id': 'status'},
+                    {'name': 'Model', 'id': 'model_name'},
                     {'name': 'Parameters', 'id': 'parameters'},
                     {'name': 'Data directory', 'id': 'data_dir_id'},
                     {'name': 'Logs', 'id': 'job_logs'}
@@ -188,6 +189,18 @@ segmentation = [
 # sidebar - labeling tools
 sidebar_label = [
     dbc.Card(
+        id="msg-card",
+        children=[
+            dbc.CardHeader("Message"),
+            dbc.CardBody(
+                [
+                    dcc.Textarea(id='msg-display',
+                                 value='',
+                                 style={'width':'100%', 'height': '3rem'})
+                ]
+            )
+        ]),
+    dbc.Card(
         id="sidebar-card",
         style={"width": "100%"},
         children=[
@@ -206,7 +219,8 @@ sidebar_label = [
                             )
                             for n, c in enumerate(class_labels)
                         ],
-                        style={'margin-bottom': '1rem'}),
+                        className='row',
+                        style={'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'}),
                     html.Div([
                         dbc.Label(
                             "Width of annotation paintbrush",
@@ -266,14 +280,14 @@ sidebar_label = [
                                         id="train-seg",
                                         outline=True,
                                         size="lg",
-                                        style={'width':'45%'}
+                                        style={'width':'40%'}
                                     ),
                                     dbc.Button(
                                         "TEST",
                                         id="compute-seg",
                                         outline=True,
                                         size="lg",
-                                        style={'width':'45%'}
+                                        style={'width':'40%'}
                                     ),
                                 ],
                                 className='row',
@@ -449,11 +463,9 @@ app.layout = html.Div (
                     dbc.Row(dbc.Col(training_results)),
                     dbc.Row(dbc.Col(meta)),
                 ]
-            ),
-
+            )
         ]
         )
-
 
 
 
