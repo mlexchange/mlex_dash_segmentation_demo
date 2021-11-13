@@ -211,7 +211,7 @@ sidebar_label = [
                 [
                     dcc.Textarea(id='msg-display',
                                  value='',
-                                 style={'width': '100%', 'height': '3rem'})
+                                 style={'width':'100%', 'height': '3rem'})
                 ]
             )
         ]),
