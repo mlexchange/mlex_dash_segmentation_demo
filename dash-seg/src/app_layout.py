@@ -22,7 +22,7 @@ N_IMAGES = np_volume.shape[0]
 IMAGES_SHAPE = (np_volume.shape[1], np_volume.shape[2])
 # hardcoded model database as dict
 MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
-                  "MSD": "mlexchange/msdnetwork-notebook",
+                  "pyMSDtorch": "mlexchange/msdnetwork-notebook",
                   "K-Means": "mlexchange/k-means-dc",
                 }
 
@@ -264,7 +264,7 @@ sidebar_label = [
                                                  options=[
                                                      {"label": entry, "value": entry} for entry in MODEL_DATABASE],
                                                  style={'min-width': '250px'},
-                                                 value='MSD',
+                                                 value='pyMSDtorch',
                                                  ),
                                 ],
                             ),
@@ -331,96 +331,6 @@ sidebar_label = [
     ),
 ]
 
-# parameters for RF
-random_forest_params = [
-    dbc.FormGroup(
-        [
-            html.H6(
-                id="stroke-width-display",
-                className="card-title",
-            ),
-            dbc.Label(
-                "Blurring parameter",
-                html_for="sigma-range-slider",
-            ),
-            dcc.RangeSlider(
-                id="sigma-range-slider",
-                min=0.01,
-                max=20,
-                step=0.01,
-                value=[0.5, 16],
-            ),
-        ]
-    ),
-    dbc.FormGroup(
-        [
-            dbc.Label(
-                "Select features",
-                html_for="segmentation-features",
-            ),
-            dcc.Checklist(
-                id="segmentation-features",
-                options=[
-                    {"label": l.capitalize(), "value": l}
-                    for l in SEG_FEATURE_TYPES
-                ],
-                value=["intensity", "edges"],
-            ),
-        ]
-    ),
-]
-
-
-
-# parameters for MSD
-msd_params = [
-    dbc.FormGroup(
-        [
-            html.H6(
-                id="msd-option-1",
-                className="card-title",
-            ),
-            dbc.Label(
-                id='learning-rate-slider-output',
-                children="Learning Rate: .02",
-                html_for="learning-rate",
-            ),
-            dcc.Slider(
-                id="learning-rate-slider",
-                min=0.01,
-                max=.1,
-                step=0.01,
-                value=.02,
-            ),
-        ]
-    ),
-
-]
-
-# parameters for K-Means
-kmeans_params = [
-    dbc.FormGroup(
-        [
-            html.H6(
-                id="K-Means",
-                className="card-title",
-            ),
-            dbc.Label(
-                id='n_clusters-output',
-                children="Number of Clusters: 2",
-                html_for="n-clusters",
-            ),
-            dcc.Slider(
-                id="n_clusters",
-                min=2,
-                max=10,
-                step=1,
-                value=2,
-            ),
-        ]
-    ),
-
-]
 
 
 # training results
@@ -457,7 +367,6 @@ meta = [
             dcc.Store(id="features_hash", data=""),
             dcc.Store(id='current-image-num', data=0),
             dcc.Store(id='image-store', data={}),
-            dcc.Store(id='nothing', data=''),
         ],
     ),
     html.Div(id="download-dummy"),
