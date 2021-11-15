@@ -25,16 +25,17 @@ class SimpleItem(dbc.FormGroup):
                  name,
                  base_id,
                  title=None,
+                 param_key=None,
                  type='number',
                  debounce=True,
                  **kwargs):
         self.name = name
-
         self.label = dbc.Label(title or name)
         self.input = dbc.Input(type=type,
                                debounce=debounce,
                                id={**base_id,
-                                   'name': name},
+                                   'name': name,
+                                   'param_key': param_key},
                                **kwargs)
 
         super(SimpleItem, self).__init__(children=[self.label, self.input])
@@ -61,6 +62,7 @@ class SliderItem(dbc.FormGroup):
                  name,       
                  base_id,   
                  title=None,
+                 param_key=None,
                  debounce=True,
                  visible=True,
                  **kwargs):
@@ -68,7 +70,9 @@ class SliderItem(dbc.FormGroup):
         self.label = dbc.Label(title or name)
         self.input = dcc.Slider(id={**base_id,
                                     'name': name,
+                                    'param_key': param_key,
                                     'layer': 'input'},
+                                tooltip={"placement": "bottom", "always_visible": True},
                                 **kwargs)
 
         style = {}
@@ -77,6 +81,7 @@ class SliderItem(dbc.FormGroup):
 
         super(SliderItem, self).__init__(id={**base_id,
                                              'name': name,
+                                             'param_key': param_key,
                                              'layer': 'form_group'},
                                          children=[self.label, self.input],
                                          style=style)
@@ -87,6 +92,7 @@ class DropdownItem(dbc.FormGroup):
                  name,       
                  base_id,   # shared by all components
                  title=None,
+                 param_key=None,
                  debounce=True,
                  visible=True,
                  **kwargs):
@@ -94,6 +100,7 @@ class DropdownItem(dbc.FormGroup):
         self.label = dbc.Label(title or name)
         self.input = dcc.Dropdown(id={**base_id,
                                     'name': name,
+                                    'param_key': param_key,
                                     'layer': 'input'},
                                 **kwargs)
 
@@ -103,6 +110,7 @@ class DropdownItem(dbc.FormGroup):
 
         super(DropdownItem, self).__init__(id={**base_id,
                                                  'name': name,
+                                                 'param_key': param_key,
                                                  'layer': 'form_group'},
                                              children=[self.label, self.input],
                                              style=style)
@@ -113,12 +121,14 @@ class RadioItem(dbc.FormGroup):
                  name,
                  base_id,
                  title=None,
+                 param_key=None,
                  visible=True,
                  **kwargs):
 
         self.label = dbc.Label(title or name)
         self.input = dbc.RadioItems(id={**base_id,
                                         'name': name,
+                                        'param_key': param_key,
                                         'layer': 'input'},
                                     **kwargs)
 
@@ -128,6 +138,7 @@ class RadioItem(dbc.FormGroup):
 
         super(RadioItem, self).__init__(id={**base_id,
                                                'name': name,
+                                               'param_key': param_key,
                                                'layer': 'form_group'},
                                            children=[self.label, self.input],
                                            style=style)
@@ -138,12 +149,14 @@ class BoolItem(dbc.FormGroup):
                  name,
                  base_id,
                  title=None,
+                 param_key=None,
                  visible=True,
                  **kwargs):
 
         self.label = dbc.Label(title or name)
         self.input = daq.ToggleSwitch(id={**base_id,
                                           'name': name,
+                                          'param_key': param_key,
                                           'layer': 'input'},
                                       **kwargs)
         self.output_label = dbc.Label('False/True')
@@ -154,6 +167,7 @@ class BoolItem(dbc.FormGroup):
 
         super(BoolItem, self).__init__(id={**base_id,
                                            'name': name,
+                                           'param_key': param_key,
                                            'layer': 'form_group'},
                                        children=[self.label, self.input, self.output_label],
                                        style=style)
@@ -163,6 +177,7 @@ class GraphItem(dbc.FormGroup):
     def __init__(self,
                  name,
                  base_id,
+                 param_key=None,
                  title=None,
                  visible=True,
                  **kwargs):
@@ -170,6 +185,7 @@ class GraphItem(dbc.FormGroup):
         self.label = dbc.Label(title or name)
         self.input = dcc.Graph(id={**base_id,
                                     'name': name,
+                                    'param_key': param_key,
                                     'layer': 'input'},
                                 **kwargs)
 
@@ -179,6 +195,7 @@ class GraphItem(dbc.FormGroup):
 
         super(GraphItem, self).__init__(id={**base_id,
                                            'name': name,
+                                           'param_key': param_key,
                                            'layer': 'form_group'},
                                        children=[self.label, self.input],
                                        style=style)
