@@ -264,7 +264,7 @@ sidebar_label = [
                                                  options=[
                                                      {"label": entry, "value": entry} for entry in MODEL_DATABASE],
                                                  style={'min-width': '250px'},
-                                                 value='pyMSDtorch',
+                                                 value='Random Forest',
                                                  ),
                                 ],
                             ),
