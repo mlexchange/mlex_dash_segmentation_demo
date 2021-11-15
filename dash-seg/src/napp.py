@@ -448,7 +448,6 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
 
     elif seg_dropdown_value == "pyMSDtorch":
         docker_cmd = "python src/train.py"
-        input_params = {"num_epochs": 200, "optimizer": "Adam", "criterion": "CrossEntropyLoss", "learning_rate": 0.01, "num_layers": 10, "max_dilation": 10}
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [mask_dir_docker, images_dir_docker, model_dir_docker],
                    'parameters':  input_params,
