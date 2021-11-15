@@ -172,6 +172,21 @@ segmentation = [
             ),
         ]
     ),
+    dbc.Collapse(
+        id = 'show-plot',
+        children = dbc.Card(
+            id="plot-card",
+            children=[
+                dbc.CardHeader("Loss Plot"),
+                dbc.CardBody(
+                    [
+                        dcc.Graph(id='loss-plot',
+                                  style={'width':'100%', 'height': '20rem'})
+                    ]
+                )
+            ]
+        )
+    ),
     dbc.Card(
         id="logs-card",
         children=[
