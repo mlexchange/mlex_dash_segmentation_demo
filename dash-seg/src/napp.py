@@ -23,8 +23,7 @@ import job_dispatcher
 from targeted_callbacks import targeted_callback
 from kwarg_editor import JSONParameterEditor
 import helper_utils
-from app_layout import header, segmentation, sidebar_label, random_forest_params, kmeans_params, \
-    msd_params, training_results, meta, app, np_volume, MODEL_DATABASE, IMAGES_SHAPE
+from app_layout import header, segmentation, sidebar_label, training_results, meta, app, np_volume, MODEL_DATABASE, IMAGES_SHAPE
 
 #### GLOBAL PARAMS ####
 DEFAULT_LABEL_CLASS = 0
@@ -119,7 +118,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
             if model_name == "Random Forest":
                 semi = imageio.imread(
                     'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
-            elif model_name == "MSD":
+            elif model_name == "pyMSDtorch":
                 semi = imageio.mimread('data/mlexchange_store/{}/{}/out/results.tif'.format(USER_NAME, job_id))[
                     image_slider_value]
             elif model_name == "K-Means":
@@ -409,10 +408,11 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
     feature_dir_docker = str(FEATURE_DIR)
     
     input_params = {}
-    for child in children['props']['children']:
-        key   = child["props"]["children"][1]["props"]["key"]
-        value = child["props"]["children"][1]["props"]["value"]
-        input_params[key] = value
+    if bool(children):
+        for child in children['props']['children']:
+            key   = child["props"]["children"][1]["props"]["id"]["param_key"]
+            value = child["props"]["children"][1]["props"]["value"]
+            input_params[key] = value
 
     if seg_dropdown_value == 'Random Forest':
         print('now doing random forest...')
@@ -442,19 +442,21 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
                    'data_dir_id': data_dir_id
                    }
 
-    elif seg_dropdown_value == "MSD":
-        docker_cmd = "python Deploy.py"
+    elif seg_dropdown_value == "pyMSDtorch":
+        docker_cmd = "python src/train.py"
+        input_params = {"num_epochs": 200, "optimizer": "Adam", "criterion": "CrossEntropyLoss", "learning_rate": 0.01, "num_layers": 10, "max_dilation": 10}
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [mask_dir_docker, images_dir_docker, model_dir_docker],
-                   'parameters': {},
+                   'parameters':  input_params,
                    'data_dir_id': data_dir_id
                    }
 
     elif seg_dropdown_value == "K-Means":
         docker_cmd = "python kmeans.py"
+        input_params = {}
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [images_dir_docker, model_dir_docker],
-                   'parameters': {},
+                   'parameters':  input_params,
                    'data_dir_id': data_dir_id
                    }
 
@@ -555,9 +557,10 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
                    'data_dir_id': data_dir_id
                    }
 
-    elif (seg_dropdown_value == "MSD"):
+    elif (seg_dropdown_value == "pyMSDtorch"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
-        docker_cmd = "python Segment.py"
+        docker_cmd = "python src/segment.py"
+        meta_params= {"show_progress": 1}
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
@@ -593,7 +596,7 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     return ['']
 
     # need to compute every image slice. I think we'll just
-    # make something that generalizes to the MSD, where we have
+    # make something that generalizes to the pyMSDtorch, where we have
     # a single worker node-- there is no point scaling up becaue we only have one or two gpus.
     # in the created docker file, we will use job lib to create parallel shit.
 
@@ -620,24 +623,17 @@ def additional_seg_features(seg_dropdown_value):
     data = model_list_GET_call()
     if seg_dropdown_value == 'Random Forest':
         conditions = {'model_name': 'random_forest'}
-        random_forest = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
-        gui_item = JSONParameterEditor(_id={'type': 'parameter_editor'},  # pattern match _id (base id), name
-                                       json_blob=random_forest[0]["gui_parameters"],
-                                       )
-        gui_item.init_callbacks(app)
-        return [gui_item]
-    elif seg_dropdown_value == 'MSD':
-        return [msd_params]
+    elif seg_dropdown_value == 'pyMSDtorch':
+        conditions = {'model_name': 'pyMSDtorch'}
     elif seg_dropdown_value == 'K-Means':
         conditions = {'model_name': 'kmeans'}
-        kmeans = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
-        gui_item = JSONParameterEditor(_id={'type': 'parameter_editor'},  # pattern match _id (base id), name
-                                       json_blob=kmeans[0]["gui_parameters"],
-                                       )
-        gui_item.init_callbacks(app)
-        return [gui_item]
-    else:
-        return [""]
+    
+    model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
+    gui_item = JSONParameterEditor(_id={'type': 'parameter_editor'},  # pattern match _id (base id), name
+                                   json_blob=model[0]["gui_parameters"],
+                                   )
+    gui_item.init_callbacks(app)
+    return [gui_item]
 
 
 if __name__ == "__main__":
