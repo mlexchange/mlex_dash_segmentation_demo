@@ -65,9 +65,7 @@ def msg_style(color='black'):
 @app.callback(
     [
         Output("graph", "figure"),
-        Output('slider-output-container', 'children'),
-        Output('msg-display', 'value'),
-        Output('msg-display', 'style')
+        Output('slider-output-container', 'children')
     ],
     [
         Input("image-slider", "value"),
@@ -89,8 +87,6 @@ def msg_style(color='black'):
 )
 def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, seg_dropdown_value,
                   image_store_data, stroke_width, row, masks_data, classified_image_store_data, experiment_store_data, job_data):
-    msg = ''
-    msg_color = msg_style('red')
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     # find label class value by finding button with the most recent click
@@ -115,54 +111,98 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                                           image_cache=im_cache)
     if ("Show segmentation" in show_segmentation_value):
         # get most recent experiment job id
-        if row is not None:
-            model_name  = job_data[row[0]]["model_name"]
-            data_dir_id = job_data[row[0]]["data_dir_id"]
-            job_id      = data_dir_id
-            # read in image (too large to store all images in browser cache)
-            USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
-            try:
-                if model_name == "Random Forest":
-                    semi = imageio.imread(
-                        'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
-                elif model_name == "pyMSDtorch":
-                    semi = imageio.mimread('data/mlexchange_store/{}/{}/out/results.tif'.format(USER_NAME, job_id))[
-                        image_slider_value]
-                elif model_name == "K-Means":
-                    semi = imageio.imread(
-                        'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
+        if  row is not None:
+            job_type  = job_data[row[0]]["job_type"]
+            if job_type == 'deploy':
+                model_name  = job_data[row[0]]["model_name"]
+                data_dir_id = job_data[row[0]]["data_dir_id"]
+            
+                job_id      = data_dir_id
+                # read in image (too large to store all images in browser cache)
+                USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
+                try:
+                    if model_name == "Random Forest":
+                        semi = imageio.imread(
+                            'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
+                    elif model_name == "pyMSDtorch":
+                        semi = imageio.mimread('data/mlexchange_store/{}/{}/out/results.tif'.format(USER_NAME, job_id))[
+                            image_slider_value]
+                    elif model_name == "K-Means":
+                        semi = imageio.imread(
+                            'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
 
-            except:
-                print('slice not yet segmented')
-            semi = helper_utils.label_to_colors(semi)
+                except:
+                    print('slice not yet segmented')
+                semi = helper_utils.label_to_colors(semi)
 
-            def img_array_to_pil_image(ia):
-                ia = skimage.util.img_as_ubyte(ia)
-                img = PIL.Image.fromarray(ia)
-                return img
+                def img_array_to_pil_image(ia):
+                    ia = skimage.util.img_as_ubyte(ia)
+                    img = PIL.Image.fromarray(ia)
+                    return img
 
-            semipng = img_array_to_pil_image(semi)
-            semipng.save('data/printcolor.png')
+                semipng = img_array_to_pil_image(semi)
+                semipng.save('data/printcolor.png')
 
-            width, height = (semi.shape[0], semi.shape[1])
-            im.add_layout_image(
-                dict(
-                    source=semipng,
-                    xref="x",
-                    yref="y",
-                    x=0,
-                    y=0,
-                    sizex=width,
-                    sizey=height,
-                    sizing="contain",
-                    opacity=0.5,
-                    layer="above",
+                width, height = (semi.shape[0], semi.shape[1])
+                im.add_layout_image(
+                    dict(
+                        source=semipng,
+                        xref="x",
+                        yref="y",
+                        x=0,
+                        y=0,
+                        sizex=width,
+                        sizey=height,
+                        sizing="contain",
+                        opacity=0.5,
+                        layer="above",
+                    )
                 )
-            )
-            im.update_layout(template='plotly_white')
-        else:
+                im.update_layout(template='plotly_white')
+
+    return [im, image_slider_value]
+
+
+
+@app.callback(
+    [
+        Output('msg-display', 'value'),
+        Output('msg-display', 'style')
+    ],
+    [
+        Input('seg-dropdown', 'value'),
+        Input('show-segmentation', 'value'),
+        Input('jobs_table', 'selected_rows'),
+    ],
+    State('jobs_table', 'data')
+)
+def additional_seg_features(seg_dropdown_value, show_segmentation_value, row, job_data):
+    msg = ''
+    msg_color = msg_style()
+    conditions = {}
+    data = model_list_GET_call()
+    if seg_dropdown_value == 'Random Forest':
+        conditions = {'model_name': 'random_forest'}
+    elif seg_dropdown_value == 'pyMSDtorch':
+        conditions = {'model_name': 'pyMSDtorch'}
+    elif seg_dropdown_value == 'K-Means':
+        conditions = {'model_name': 'kmeans'}
+    
+    if bool(conditions):
+        model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
+        msg = model[0]["reference"]
+    
+    if bool(show_segmentation_value):
+        if row is None:
             msg = 'Please select a deploy (segment) result from List of Jobs!'
-    return [im, image_slider_value, msg, msg_color]
+            msg_color = msg_style('red')
+        else:
+            job_type  = job_data[row[0]]["job_type"]
+            if job_type != 'deploy':
+                msg = 'Please select deply (segment) from the List of Jobs!'
+                msg_color = msg_style('red')
+
+    return [msg, msg_color]
 
 
 @app.callback(
