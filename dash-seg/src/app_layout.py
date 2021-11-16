@@ -65,7 +65,7 @@ job_status_display = [
                 hidden_columns = ['job_id', 'data_dir_id', 'job_logs'],
                 row_selectable='single',
                 style_cell={'padding': '1rem'},
-                style_table={'height': '15rem', 'overflowY': 'auto'},
+                style_table={'height': '20rem', 'overflowY': 'auto'},
                 fixed_rows={'headers': True},
                 style_data_conditional=[
                     {'if': {'column_id': 'status', 'filter_query': '{status} = completed'},
@@ -172,6 +172,18 @@ segmentation = [
             ),
         ]
     ),
+    dbc.Card(
+        id="msg-card",
+        children=[
+            dbc.CardHeader("Message"),
+            dbc.CardBody(
+                [
+                    dcc.Textarea(id='msg-display',
+                                 value='',
+                                 style={'width':'100%', 'height': '3rem', 'color': 'red'})
+                ]
+            )
+        ]),
     dbc.Collapse(
         id = 'show-plot',
         children = dbc.Card(
@@ -203,18 +215,6 @@ segmentation = [
 
 # sidebar - labeling tools
 sidebar_label = [
-    dbc.Card(
-        id="msg-card",
-        children=[
-            dbc.CardHeader("Message"),
-            dbc.CardBody(
-                [
-                    dcc.Textarea(id='msg-display',
-                                 value='',
-                                 style={'width':'100%', 'height': '3rem', 'color': 'red'})
-                ]
-            )
-        ]),
     dbc.Card(
         id="sidebar-card",
         style={"width": "100%"},
