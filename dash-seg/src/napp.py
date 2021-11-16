@@ -58,9 +58,6 @@ def image_upload(upload_image_contents, upload_image_filename, image_store_data)
     return [image_store_data, image_slider_max]
 
 
-def msg_style(color='black'):
-    return {'width':'100%', 'height': '3rem', 'color': color} 
-
 ### REACTIVE COMPONENTS FOR DISPLAY FIGURE ###
 @app.callback(
     [
@@ -163,6 +160,8 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
     return [im, image_slider_value]
 
 
+def msg_style(color='black'):
+    return {'width':'100%', 'height': '3rem', 'color': color} 
 
 @app.callback(
     [
