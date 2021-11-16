@@ -58,11 +58,16 @@ def image_upload(upload_image_contents, upload_image_filename, image_store_data)
     return [image_store_data, image_slider_max]
 
 
+def msg_style(color='black'):
+    return {'width':'100%', 'height': '3rem', 'color': color} 
+
 ### REACTIVE COMPONENTS FOR DISPLAY FIGURE ###
 @app.callback(
     [
         Output("graph", "figure"),
         Output('slider-output-container', 'children'),
+        Output('msg-display', 'value'),
+        Output('msg-display', 'style')
     ],
     [
         Input("image-slider", "value"),
@@ -72,19 +77,20 @@ def image_upload(upload_image_contents, upload_image_filename, image_store_data)
         Input('show-segmentation', 'value'),
         Input("seg-dropdown", "value"),
         Input('image-store', 'data'),
-        Input('stroke-width', 'value')
+        Input('stroke-width', 'value'),
+        Input('jobs_table', 'selected_rows'),
     ],
     [
         State("masks", "data"),
         State('classified-image-store', 'data'),
         State('experiment-store', 'data'),
-        State('jobs_table', 'selected_rows'),
         State('jobs_table', 'data')
      ],
 )
 def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, seg_dropdown_value,
-                  image_store_data, stroke_width, masks_data, classified_image_store_data, experiment_store_data,
-                  row, job_data):
+                  image_store_data, stroke_width, row, masks_data, classified_image_store_data, experiment_store_data, job_data):
+    msg = ''
+    msg_color = msg_style('red')
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     # find label class value by finding button with the most recent click
@@ -109,51 +115,54 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                                           image_cache=im_cache)
     if ("Show segmentation" in show_segmentation_value):
         # get most recent experiment job id
-        model_name  = job_data[row[0]]["model_name"]
-        data_dir_id = job_data[row[0]]["data_dir_id"]
-        job_id      = data_dir_id
-        # read in image (too large to store all images in browser cache)
-        USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
-        try:
-            if model_name == "Random Forest":
-                semi = imageio.imread(
-                    'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
-            elif model_name == "pyMSDtorch":
-                semi = imageio.mimread('data/mlexchange_store/{}/{}/out/results.tif'.format(USER_NAME, job_id))[
-                    image_slider_value]
-            elif model_name == "K-Means":
-                semi = imageio.imread(
-                    'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
+        if row is not None:
+            model_name  = job_data[row[0]]["model_name"]
+            data_dir_id = job_data[row[0]]["data_dir_id"]
+            job_id      = data_dir_id
+            # read in image (too large to store all images in browser cache)
+            USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
+            try:
+                if model_name == "Random Forest":
+                    semi = imageio.imread(
+                        'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
+                elif model_name == "pyMSDtorch":
+                    semi = imageio.mimread('data/mlexchange_store/{}/{}/out/results.tif'.format(USER_NAME, job_id))[
+                        image_slider_value]
+                elif model_name == "K-Means":
+                    semi = imageio.imread(
+                        'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
 
-        except:
-            print('slice not yet segmented')
-        semi = helper_utils.label_to_colors(semi)
+            except:
+                print('slice not yet segmented')
+            semi = helper_utils.label_to_colors(semi)
 
-        def img_array_to_pil_image(ia):
-            ia = skimage.util.img_as_ubyte(ia)
-            img = PIL.Image.fromarray(ia)
-            return img
+            def img_array_to_pil_image(ia):
+                ia = skimage.util.img_as_ubyte(ia)
+                img = PIL.Image.fromarray(ia)
+                return img
 
-        semipng = img_array_to_pil_image(semi)
-        semipng.save('data/printcolor.png')
+            semipng = img_array_to_pil_image(semi)
+            semipng.save('data/printcolor.png')
 
-        width, height = (semi.shape[0], semi.shape[1])
-        im.add_layout_image(
-            dict(
-                source=semipng,
-                xref="x",
-                yref="y",
-                x=0,
-                y=0,
-                sizex=width,
-                sizey=height,
-                sizing="contain",
-                opacity=0.5,
-                layer="above",
+            width, height = (semi.shape[0], semi.shape[1])
+            im.add_layout_image(
+                dict(
+                    source=semipng,
+                    xref="x",
+                    yref="y",
+                    x=0,
+                    y=0,
+                    sizex=width,
+                    sizey=height,
+                    sizing="contain",
+                    opacity=0.5,
+                    layer="above",
+                )
             )
-        )
-        im.update_layout(template='plotly_white')
-    return [im, image_slider_value]
+            im.update_layout(template='plotly_white')
+        else:
+            msg = 'Please select a deploy (segment) result from List of Jobs!'
+    return [im, image_slider_value, msg, msg_color]
 
 
 @app.callback(
@@ -444,7 +453,6 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
 
     elif seg_dropdown_value == "pyMSDtorch":
         docker_cmd = "python src/train.py"
-        input_params = {"num_epochs": 200, "optimizer": "Adam", "criterion": "CrossEntropyLoss", "learning_rate": 0.01, "num_layers": 10, "max_dilation": 10}
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [mask_dir_docker, images_dir_docker, model_dir_docker],
                    'parameters':  input_params,
