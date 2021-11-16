@@ -58,12 +58,16 @@ def image_upload(upload_image_contents, upload_image_filename, image_store_data)
     return [image_store_data, image_slider_max]
 
 
+def msg_style(color='black'):
+    return {'width':'100%', 'height': '3rem', 'color': color} 
+
 ### REACTIVE COMPONENTS FOR DISPLAY FIGURE ###
 @app.callback(
     [
         Output("graph", "figure"),
         Output('slider-output-container', 'children'),
-        Output('msg-display', 'value')
+        Output('msg-display', 'value'),
+        Output('msg-display', 'style')
     ],
     [
         Input("image-slider", "value"),
@@ -86,6 +90,7 @@ def image_upload(upload_image_contents, upload_image_filename, image_store_data)
 def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, seg_dropdown_value,
                   image_store_data, stroke_width, row, masks_data, classified_image_store_data, experiment_store_data, job_data):
     msg = ''
+    msg_color = msg_style('red')
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     # find label class value by finding button with the most recent click
@@ -157,7 +162,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
             im.update_layout(template='plotly_white')
         else:
             msg = 'Please select a deploy (segment) result from List of Jobs!'
-    return [im, image_slider_value, msg]
+    return [im, image_slider_value, msg, msg_color]
 
 
 @app.callback(

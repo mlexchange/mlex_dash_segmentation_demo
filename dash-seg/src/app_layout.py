@@ -180,7 +180,7 @@ segmentation = [
                 [
                     dcc.Textarea(id='msg-display',
                                  value='',
-                                 style={'width':'100%', 'height': '3rem', 'color': 'red'})
+                                 style={'width':'100%', 'height': '3rem'})
                 ]
             )
         ]),
