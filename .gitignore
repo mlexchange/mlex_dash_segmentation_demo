@@ -6,3 +6,4 @@ dash-seg/data/full_size/*
 kmeans/.*
 __pycache__
 .DS_Store
+.ipynb_checkpoints
