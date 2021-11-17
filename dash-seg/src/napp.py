@@ -34,18 +34,6 @@ USER = 'mlexchange-team'
 DATA_DIR = str(os.environ['DATA_DIR'])
 
 
-@app.callback(
-    Output('job-modal', 'is_open'),
-    Input('job-button', 'n_clicks'),
-    State('job-modal', 'is_open'),
-    prevent_initial_call=True
-)
-def toggle_modal(n, is_open):
-    if n:
-        return not is_open
-    return is_open
-
-
 def msg_style(color='black'):
     return {'width':'100%', 'height': '3rem', 'color': color}
 
@@ -74,8 +62,7 @@ def msg_style(color='black'):
     [
         State('masks', 'data'),
         State('jobs_table', 'data')
-     ],
-    prevent_initial_call=True
+     ]
 )
 def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, image_store_data,
                   stroke_width, row, dataset, masks_data, job_data):
@@ -300,8 +287,7 @@ def model_list_GET_call():
         Output('jobs_table', 'data'),
         Output('show-plot', 'is_open'),
         Output('loss-plot', 'figure'),
-        # Output('job-logs', 'value'),
-        Output('job-display', 'value'),
+        Output('job-logs', 'value'),
     ],
     Input('update-training-loss', 'n_intervals'),
     State('jobs_table', 'selected_rows'),
@@ -329,14 +315,11 @@ def update_table(n, row):
                '\nParameters: ' + data_table[row[0]]["parameters"]
         log = data_table[row[0]]["job_logs"]
         if log:
-            text = text + '\n\nLogs:\n'+log
             start = log.find('loss')
             if start > -1:
                 fig = helper_utils.generate_figure(log,start)
-                return data_table, True, fig, text #log, text
-    else:
-        text = 'No job has been selected'
-    return data_table, False, go.Figure(go.Scatter(x=[], y=[])), text #log, text
+                return data_table, True, fig, log
+    return data_table, False, go.Figure(go.Scatter(x=[], y=[])), log
 
 
 @app.callback(

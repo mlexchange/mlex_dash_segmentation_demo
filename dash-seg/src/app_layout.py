@@ -45,48 +45,33 @@ header = templates.header()
 job_status_display = [
     html.Div(
         children=[
-            dbc.Button(
-                "SHOW JOB LIST",
-                id="job-button",
-                outline=True,
-            ),
-            dbc.Modal(
-                id = 'job-modal',
-                size='lg',
-                is_open=False,
-                children=[
-                    dash_table.DataTable(
-                        id='jobs_table',
-                        columns=[
-                            {'name': 'Job ID', 'id': 'job_id'},
-                            {'name': 'Type', 'id': 'job_type'},
-                            {'name': 'Status', 'id': 'status'},
-                            {'name': 'Dataset', 'id': 'dataset'},
-                            {'name': 'Model', 'id': 'model_name'},
-                            {'name': 'Parameters', 'id': 'parameters'},
-                            {'name': 'Data directory', 'id': 'data_dir_id'},
-                            {'name': 'Logs', 'id': 'job_logs'}
-                        ],
-                        data = [],
-                        hidden_columns = ['job_id', 'data_dir_id', 'job_logs'],
-                        row_selectable='single',
-                        style_cell={'padding': '1rem', 'maxWidth': '7rem', 'whiteSpace': 'normal'},
-                        fixed_rows={'headers': True},
-                        css=[{"selector": ".show-hide", "rule": "display: none"}],
-                        style_data_conditional=[
-                            {'if': {'column_id': 'status', 'filter_query': '{status} = completed'},
-                             'backgroundColor': 'green',
-                             'color': 'white'},
-                            {'if': {'column_id': 'status', 'filter_query': '{status} = failed'},
-                             'backgroundColor': 'red',
-                             'color': 'white'}
-                        ]
-                    )
+            dash_table.DataTable(
+                id='jobs_table',
+                columns=[
+                    {'name': 'Job ID', 'id': 'job_id'},
+                    {'name': 'Type', 'id': 'job_type'},
+                    {'name': 'Status', 'id': 'status'},
+                    {'name': 'Dataset', 'id': 'dataset'},
+                    {'name': 'Model', 'id': 'model_name'},
+                    {'name': 'Parameters', 'id': 'parameters'},
+                    {'name': 'Data directory', 'id': 'data_dir_id'},
+                    {'name': 'Logs', 'id': 'job_logs'}
+                ],
+                data = [],
+                hidden_columns = ['job_id', 'data_dir_id', 'job_logs'],
+                row_selectable='single',
+                style_cell={'padding': '1rem', 'maxWidth': '7rem', 'whiteSpace': 'normal'},
+                fixed_rows={'headers': True},
+                css=[{"selector": ".show-hide", "rule": "display: none"}],
+                style_data_conditional=[
+                    {'if': {'column_id': 'status', 'filter_query': '{status} = completed'},
+                     'backgroundColor': 'green',
+                     'color': 'white'},
+                    {'if': {'column_id': 'status', 'filter_query': '{status} = failed'},
+                     'backgroundColor': 'red',
+                     'color': 'white'}
                 ]
-            ),
-            dcc.Textarea(id='job-display',
-                         value='No job has been selected',
-                         style={'width':'100%', 'height': '10rem'})
+            )
         ]
     )
 ]
@@ -205,18 +190,18 @@ segmentation = [
             ]
         )
     ),
-    # dbc.Card(
-    #     id="logs-card",
-    #     children=[
-    #         dbc.CardHeader("Job Logs"),
-    #         dbc.CardBody(
-    #             [
-    #                 dcc.Textarea(id='job-logs',
-    #                              value='',
-    #                              style={'width':'100%', 'height': '10rem'})
-    #             ]
-    #         )
-    #     ])
+    dbc.Card(
+        id="logs-card",
+        children=[
+            dbc.CardHeader("Job Logs"),
+            dbc.CardBody(
+                [
+                    dcc.Textarea(id='job-logs',
+                                 value='',
+                                 style={'width':'100%', 'height': '10rem'})
+                ]
+            )
+        ])
 ]
 
 # sidebar - labeling tools
