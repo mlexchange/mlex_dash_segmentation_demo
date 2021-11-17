@@ -199,14 +199,10 @@ def additional_seg_features(seg_dropdown_value, show_segmentation_value, row, jo
         else:
             job_type  = job_data[row[0]]["job_type"]
             if job_type != 'deploy':
-                msg = 'Please select deply (segment) from the List of Jobs!'
+                msg = 'Please select deploy (segment) from the List of Jobs!'
                 msg_color = msg_style('red')
 
     return [msg, msg_color]
-
-
-
-
 
 
 @app.callback(
