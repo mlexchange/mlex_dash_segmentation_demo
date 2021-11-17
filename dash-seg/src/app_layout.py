@@ -4,7 +4,6 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_auth
 import dash_table
-import numpy as np
 ##### HELPER UTILS
 import helper_utils
 ##### TEMPLATE MODULES
@@ -14,12 +13,8 @@ import templates
 SEG_FEATURE_TYPES = ["intensity", "edges", "texture"]
 NUM_LABEL_CLASSES = 5
 class_labels = list(range(NUM_LABEL_CLASSES))
-SAMPLE_DATA = 'data/bead_pack.tif'
+np_volume = helper_utils.dcm_to_np('data/bead_pack.tif')
 DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
-np_volume = helper_utils.dcm_to_np(SAMPLE_DATA)
-CLASSIFIED_VOLUME = np.zeros(np_volume.shape)
-N_IMAGES = np_volume.shape[0]
-IMAGES_SHAPE = (np_volume.shape[1], np_volume.shape[2])
 # hardcoded model database as dict
 MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
                   "pyMSDtorch": "mlexchange/msdnetwork-notebook",
@@ -56,6 +51,7 @@ job_status_display = [
                     {'name': 'Job ID', 'id': 'job_id'},
                     {'name': 'Type', 'id': 'job_type'},
                     {'name': 'Status', 'id': 'status'},
+                    {'name': 'Dataset', 'id': 'dataset'},
                     {'name': 'Model', 'id': 'model_name'},
                     {'name': 'Parameters', 'id': 'parameters'},
                     {'name': 'Data directory', 'id': 'data_dir_id'},
@@ -64,9 +60,9 @@ job_status_display = [
                 data = [],
                 hidden_columns = ['job_id', 'data_dir_id', 'job_logs'],
                 row_selectable='single',
-                style_cell={'padding': '1rem'},
-                style_table={'height': '20rem', 'overflowY': 'auto'},
+                style_cell={'padding': '1rem'}, #, 'maxWidth': '7rem', 'whiteSpace': 'normal'},
                 fixed_rows={'headers': True},
+                css=[{"selector": ".show-hide", "rule": "display: none"}],
                 style_data_conditional=[
                     {'if': {'column_id': 'status', 'filter_query': '{status} = completed'},
                      'backgroundColor': 'green',
@@ -75,9 +71,8 @@ job_status_display = [
                      'backgroundColor': 'red',
                      'color': 'white'}
                 ]
-            ),
-
-        ],
+            )
+        ]
     )
 ]
 
@@ -88,30 +83,26 @@ segmentation = [
         children=[
             dbc.CardHeader(
                 [
-                    dcc.Upload(
-                        id='upload-image',
-                        children=html.Div([
-                            'Drag and Drop',
-                            ]),
-                        style={
-                            'width': '100%',
-                            'height': '60px',
-                            'lineHeight': '60px',
-                            'borderWidth': '1px',
-                            'borderStyle': 'dashed',
-                            'borderRadius': "5px",
-                            'textAlign': 'center',
-                            'maring':'10px'
-                            },
-                        multiple=True,
-                        )
-
+                    dbc.Label('Choose Dataset', className='mr-2'),
+                    dcc.Dropdown(
+                        id='dataset-selection',
+                        options=[
+                            {'label': 'Bead Experimental', 'value': 'data/bead_pack.tif'},
+                            {'label': 'Bead Simulated', 'value': 'data/bead_pack_artifacts.tif'},
+                            {'label': 'Castle Simulated', 'value': 'data/castle_artifacts.tif'},
+                            {'label': 'Gambier Simulated', 'value': 'data/Gambier_artifacts.tif'},
+                            {'label': 'LRC32 Simulated', 'value': 'data/lrc32_artifacts.tif'}
+                        ],
+                        value = 'data/bead_pack.tif',
+                        clearable=False,
+                        style={'margin-bottom': '1rem'}
+                    ),
                 ]
             ),
             dbc.CardBody(
                         dcc.Graph(
                         id="graph",
-                        figure=helper_utils.make_default_figure(0,np_volume),
+                        figure = helper_utils.make_default_figure(0,np_volume),
                             config={
                                 "modeBarButtonsToAdd": [
                                 "drawrect",
@@ -137,7 +128,7 @@ segmentation = [
                                                 dcc.Slider(
                                                     id='image-slider',
                                                     min=0,
-                                                    max=N_IMAGES,
+                                                    max=200,
                                                     value = 0,
                                                     updatemode='drag'
                                                     ),
