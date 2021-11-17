@@ -1,7 +1,9 @@
 dash-seg/data/*.png
 dash-seg/data/mlexchange_store/**/*
 dash-seg/src/__pycache__/*
+dash-seg/data/full_size/*
 
 kmeans/.*
 __pycache__
 .DS_Store
+.ipynb_checkpoints

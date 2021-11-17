@@ -23,7 +23,8 @@ import job_dispatcher
 from targeted_callbacks import targeted_callback
 from kwarg_editor import JSONParameterEditor
 import helper_utils
-from app_layout import header, segmentation, sidebar_label, training_results, meta, app, np_volume, MODEL_DATABASE, IMAGES_SHAPE
+from app_layout import app, MODEL_DATABASE
+
 
 #### GLOBAL PARAMS ####
 DEFAULT_LABEL_CLASS = 0
@@ -33,33 +34,9 @@ USER = 'mlexchange-team'
 DATA_DIR = str(os.environ['DATA_DIR'])
 
 
-### REACTIVE COMPONENTS FOR UPLOADING FIGURE ###
-@app.callback(
-    [
-        Output('image-store', 'data'),
-        Output('image-slider', 'max'),
-
-    ],
-
-    Input('upload-image', 'contents'),
-    Input('upload-image', 'filename'),
-    State('image-store', 'data'),
-)
-def image_upload(upload_image_contents, upload_image_filename, image_store_data):
-    if upload_image_contents is None:
-        raise PreventUpdate
-    print('uploading data...')
-    if upload_image_contents is not None:
-        for c, n in zip(upload_image_contents, upload_image_filename):
-            content_type, content_string = c.split(',')
-            image_store_data[n] = (content_type, content_string)
-            print('storing: {}'.format(n))
-        image_slider_max = len(upload_image_filename) - 1
-    return [image_store_data, image_slider_max]
-
-
 def msg_style(color='black'):
-    return {'width':'100%', 'height': '3rem', 'color': color} 
+    return {'width':'100%', 'height': '3rem', 'color': color}
+
 
 ### REACTIVE COMPONENTS FOR DISPLAY FIGURE ###
 @app.callback(
@@ -67,7 +44,9 @@ def msg_style(color='black'):
         Output("graph", "figure"),
         Output('slider-output-container', 'children'),
         Output('msg-display', 'value'),
-        Output('msg-display', 'style')
+        Output('msg-display', 'style'),
+        Output('image-slider', 'max'),
+        Output("image-slider", "value")
     ],
     [
         Input("image-slider", "value"),
@@ -75,20 +54,18 @@ def msg_style(color='black'):
               "n_clicks_timestamp",
               ),
         Input('show-segmentation', 'value'),
-        Input("seg-dropdown", "value"),
         Input('image-store', 'data'),
         Input('stroke-width', 'value'),
         Input('jobs_table', 'selected_rows'),
+        Input('dataset-selection', 'value')
     ],
     [
-        State("masks", "data"),
-        State('classified-image-store', 'data'),
-        State('experiment-store', 'data'),
+        State('masks', 'data'),
         State('jobs_table', 'data')
-     ],
+     ]
 )
-def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, seg_dropdown_value,
-                  image_store_data, stroke_width, row, masks_data, classified_image_store_data, experiment_store_data, job_data):
+def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, image_store_data,
+                  stroke_width, row, dataset, masks_data, job_data):
     msg = ''
     msg_color = msg_style('red')
     # read any shapes stored in browser associated with current slice
@@ -101,39 +78,47 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
             enumerate(any_label_class_button_value),
             key=lambda t: 0 if t[1] is None else t[1],
         )[0]
-    # plot the new figure given:
-    # 1. a change in image slice (from slider)
-    # 2. a "show masks" button toggled
+    # plot the new figure
     if len(image_store_data) > 0:
         im_cache = image_store_data[list(image_store_data.keys())[image_slider_value]][1]
         print(image_store_data[list(image_store_data.keys())[image_slider_value]][0])
     else:
         im_cache = None
-    im = helper_utils.make_default_figure(image_slider_value, np_volume, shapes,
-                                          stroke_color=helper_utils.class_to_color(label_class_value),
-                                          stroke_width=stroke_width,
-                                          image_cache=im_cache)
-    if ("Show segmentation" in show_segmentation_value):
-        # get most recent experiment job id
+    if "Show segmentation" in show_segmentation_value:
+        # get selected job id from job list
         if row is not None:
             model_name  = job_data[row[0]]["model_name"]
             data_dir_id = job_data[row[0]]["data_dir_id"]
             job_id      = data_dir_id
+
+            # needs to be run in a callback or we don't have access to 'app'
+            USER_NAME = request.authorization['username']
+            # dataset selection - based on selected job
+            np_volume = helper_utils.dcm_to_np('data/mlexchange_store/{}/{}/images/raw/segment_series.tif'.format(USER_NAME, job_id))
+            image_slider_max = len(np_volume) - 1
+            if image_slider_value > image_slider_max:
+                image_slider_value = 0
+            im = helper_utils.make_default_figure(image_slider_value, np_volume, shapes,
+                                                  stroke_color=helper_utils.class_to_color(label_class_value),
+                                                  stroke_width=stroke_width,
+                                                  image_cache=im_cache)
+
             # read in image (too large to store all images in browser cache)
-            USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
             try:
                 if model_name == "Random Forest":
                     semi = imageio.imread(
-                        'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
+                        'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
+                                                                                   image_slider_value))
                 elif model_name == "pyMSDtorch":
-                    semi = imageio.mimread('data/mlexchange_store/{}/{}/out/results.tif'.format(USER_NAME, job_id))[
-                        image_slider_value]
+                    semi = imageio.imread(
+                        'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
+                                                                                   image_slider_value))
                 elif model_name == "K-Means":
                     semi = imageio.imread(
-                        'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id, image_slider_value))
-
-            except:
-                print('slice not yet segmented')
+                        'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
+                                                                                   image_slider_value))
+            except Exception as err:
+                print(err)
             semi = helper_utils.label_to_colors(semi)
 
             def img_array_to_pil_image(ia):
@@ -160,19 +145,26 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                 )
             )
             im.update_layout(template='plotly_white')
+            return [im, image_slider_value, msg, msg_color, image_slider_max, image_slider_value]
         else:
             msg = 'Please select a deploy (segment) result from List of Jobs!'
-    return [im, image_slider_value, msg, msg_color]
+    # dataset selection
+    print('Loading dataset')
+    np_volume = helper_utils.dcm_to_np(dataset)
+    print('Dataset loaded')
+    image_slider_max = len(np_volume) - 1
+    if image_slider_value > image_slider_max:
+        image_slider_value = 0
+    im = helper_utils.make_default_figure(image_slider_value, np_volume, shapes,
+                                          stroke_color=helper_utils.class_to_color(label_class_value),
+                                          stroke_width=stroke_width,
+                                              image_cache=im_cache)
+    return [im, image_slider_value, msg, msg_color, image_slider_max, image_slider_value]
 
 
 @app.callback(
-    [
-        Output('masks', 'data'),
-    ],
-
-    [
-        Input("graph", "relayoutData"),
-    ],
+    Output('masks', 'data'),
+    Input("graph", "relayoutData"),
     [   
         State("image-slider", "value"),
         State('masks', 'data'),
@@ -195,7 +187,7 @@ def store_masks(graph_relayoutData, image_slice, masks_data):
                     masks_data[str(image_slice)][shape_index]['path'] = graph_relayoutData[key]
         else:
             return dash.no_update
-    return [masks_data]
+    return masks_data
 
 
 class mask_tasks():
@@ -242,8 +234,7 @@ class mask_tasks():
         return mask
 
     @classmethod
-    def create_save_masks(self, masks_data: dict, mask_output_dir=MASK_OUTPUT_DIR,
-                          image_shape_list=[IMAGES_SHAPE for i in range(100)]):
+    def create_save_masks(self, masks_data: dict, mask_output_dir, image_shape_list):
         """
         Create a mask file for each image in an image stack
         Args:
@@ -279,13 +270,24 @@ class mask_tasks():
         return mask_names
 
 
+def model_list_GET_call():
+    """
+    Get the whole model registry data from the fastapi url.
+    """
+    url = 'http://service-api:8000/api/v0/model-list'  # current host, could be inside the docker
+    response = urllib.request.urlopen(url)
+    data = json.loads(response.read())
+    return data
+
+
+
 ### REACTIVE COMPONENTS FOR TABLE, LOGS, AND PLOT GENERATION ###
 @app.callback(
     [
         Output('jobs_table', 'data'),
         Output('show-plot', 'is_open'),
         Output('loss-plot', 'figure'),
-        Output('job-logs', 'value')
+        Output('job-logs', 'value'),
     ],
     Input('update-training-loss', 'n_intervals'),
     State('jobs_table', 'selected_rows'),
@@ -297,16 +299,20 @@ def update_table(n, row):
         for job in job_list:
             data_table.insert(0,
                               dict(
-                                  job_id        =job['uid'],
-                                  job_type      =job['job_type'],
-                                  status        =job['status'],
+                                  job_id        = job['uid'],
+                                  job_type      = job['job_type'],
+                                  status        = job['status'],
+                                  dataset       = job['container_kwargs']['dataset'],
                                   model_name    = job['container_kwargs']['model_name'],
                                   parameters    = str(job['container_kwargs']['parameters']),
                                   data_dir_id   = job['container_kwargs']['data_dir_id'],
-                                  job_logs        = job['container_logs'])
+                                  job_logs      = job['container_logs'])
                               )
     log = " "
     if row:
+        text = 'Type: ' + data_table[row[0]]["job_type"] + '\nStatus: ' + data_table[row[0]]["status"] + \
+               '\nDataset: ' + data_table[row[0]]["dataset"] + '\nModel: ' + data_table[row[0]]["model_name"] + \
+               '\nParameters: ' + data_table[row[0]]["parameters"]
         log = data_table[row[0]]["job_logs"]
         if log:
             start = log.find('loss')
@@ -317,22 +323,17 @@ def update_table(n, row):
 
 
 @app.callback(
-    [
-        Output('debug-print', 'children'),
-        Output('experiment-store', 'data'),
-    ],
-    [
-        Input('train-seg', 'n_clicks')
-    ],
+    Output('debug-print', 'children'),
+    Input('train-seg', 'n_clicks'),
     [
         State('masks', 'data'),
         State('seg-dropdown', 'value'),
-        State('experiment-store', 'data'),
         State('image-store', 'data'),
-        State('additional-seg-params', 'children')
+        State('additional-seg-params', 'children'),
+        State('dataset-selection', 'value')
     ]
 )
-def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, experiment_store_data, image_store_data, children):
+def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image_store_data, children, dataset):
     """
     Args:
 
@@ -359,6 +360,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
     if (train_seg_n_clicks is None) or (seg_dropdown_value is None):
         raise PreventUpdate
 
+    # dataset selection
+    np_volume = helper_utils.dcm_to_np(dataset)
     # create user directory to store users data/experiments
     data_dir_id = str(uuid.uuid4())  # create unique id for experiment
     USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
@@ -428,7 +431,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [str(images_dir_docker), str(feature_dir_docker)],
                    'parameters':  {},
-                   'data_dir_id': data_dir_id
+                   'data_dir_id': data_dir_id,
+                   'dataset': dataset
                    }
         feat_job = job_dispatcher.SimpleJob(user=USER,
                                             job_type="feature generation",
@@ -448,7 +452,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [mask_dir_docker, feature_dir_docker, model_dir_docker],
                    'parameters': input_params,
-                   'data_dir_id': data_dir_id
+                   'data_dir_id': data_dir_id,
+                   'dataset': dataset
                    }
 
     elif seg_dropdown_value == "pyMSDtorch":
@@ -456,7 +461,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [mask_dir_docker, images_dir_docker, model_dir_docker],
                    'parameters':  input_params,
-                   'data_dir_id': data_dir_id
+                   'data_dir_id': data_dir_id,
+                   'dataset': dataset
                    }
 
     elif seg_dropdown_value == "K-Means":
@@ -465,7 +471,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [images_dir_docker, model_dir_docker],
                    'parameters':  input_params,
-                   'data_dir_id': data_dir_id
+                   'data_dir_id': data_dir_id,
+                   'dataset': dataset
                    }
 
     train_job = job_dispatcher.SimpleJob(user=USER,
@@ -480,39 +487,24 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, exper
                                          )
     train_job.launch_job()
 
-    experiment_store_data = []
     print('returning')
-    return ['', experiment_store_data]
+    return ['']
 
 
 @app.callback(
-    Output('none', 'data'),
-    Input('experiment-store', 'data'),
-)
-def test_trigger(experiment_store_data):
-    print(experiment_store_data)
-    return ''
-
-
-@app.callback(
-    [
-        Output('classified-image-store', 'data'),
-    ],
-
-    [
-        Input('compute-seg', 'n_clicks'),
-    ],
+    Output('classified-image-store', 'data'),
+    Input('compute-seg', 'n_clicks'),
     [
         State('seg-dropdown', 'value'),
-        State('experiment-store', 'data'),
         State('image-store', 'data'),
         State('jobs_table', 'selected_rows'),
-        State('jobs_table', 'data')
+        State('jobs_table', 'data'),
+        State('dataset-selection', 'value')
     ],
 
     prevent_initial_call=True
 )
-def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store_data, image_store_data, row, job_data):
+def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, image_store_data, row, job_data, dataset):
     '''
     compute_seg_nclicks: dash type, if clicked triggers this func
     seg_dropdown_value: Str, contains the str name of model to run
@@ -523,6 +515,8 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
         raise PreventUpdate
     # create user directory to store users data/experiments
 
+    # dataset selection
+    np_volume = helper_utils.dcm_to_np(dataset)
     # find most recent job id (current experiment)
     data_dir_id = job_data[row[0]]["data_dir_id"]
     USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
@@ -562,26 +556,29 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
-                   'data_dir_id': data_dir_id
+                   'data_dir_id': data_dir_id,
+                   'dataset': dataset
                    }
 
-    elif (seg_dropdown_value == "pyMSDtorch"):
+    elif seg_dropdown_value == "pyMSDtorch":
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
         docker_cmd = "python src/segment.py"
         meta_params= {"show_progress": 1}
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
-                   'data_dir_id': data_dir_id
+                   'data_dir_id': data_dir_id,
+                   'dataset': dataset
                    }
 
-    elif (seg_dropdown_value == "K-Means"):
+    elif seg_dropdown_value == "K-Means":
         model_input_dir_dock = MODEL_INPUT_DIR / 'kmeans.joblib'
         docker_cmd = "python segment.py"
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
-                   'data_dir_id': data_dir_id
+                   'data_dir_id': data_dir_id,
+                   'dataset': dataset
                    }
 
     seg_job = job_dispatcher.SimpleJob(user=USER,
@@ -597,35 +594,12 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, experiment_store
     print(seg_job.data_uri)
     seg_job.launch_job()
     print('sending images to server to be segmented')
-
-    # now read in deploy results and save them to the
-    # classified image store
-
     return ['']
-
-    # need to compute every image slice. I think we'll just
-    # make something that generalizes to the pyMSDtorch, where we have
-    # a single worker node-- there is no point scaling up becaue we only have one or two gpus.
-    # in the created docker file, we will use job lib to create parallel shit.
-
-
-def model_list_GET_call():
-    """
-    Get the whole model registry data from the fastapi url.
-    """
-    url = 'http://service-api:8000/api/v0/model-list'  # current host, could be inside the docker
-    response = urllib.request.urlopen(url)
-    data = json.loads(response.read())
-    return data
 
 
 @app.callback(
-    [
-        Output('additional-seg-params', 'children'),
-    ],
-    [
-        Input('seg-dropdown', 'value'),
-    ]
+    Output('additional-seg-params', 'children'),
+    Input('seg-dropdown', 'value')
 )
 def additional_seg_features(seg_dropdown_value):
     data = model_list_GET_call()
@@ -641,7 +615,7 @@ def additional_seg_features(seg_dropdown_value):
                                    json_blob=model[0]["gui_parameters"],
                                    )
     gui_item.init_callbacks(app)
-    return [gui_item]
+    return gui_item
 
 
 if __name__ == "__main__":
