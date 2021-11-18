@@ -90,9 +90,12 @@ def look_up_seg(d, key):
     return img
 
 
-def make_default_figure(image_index, np_volume, shapes=[], stroke_color='#ff4f00', stroke_width=3, image_cache=None):
+def make_default_figure(image_index, client, shapes=[], stroke_color='#ff4f00', stroke_width=3, image_cache=None):
     if image_cache is None:
-        im = np_volume[image_index]
+        try:
+            im = client.values_indexer[image_index].read()
+        except:
+            im = client[image_index]
         width, height = im.shape[0:2]
         print('default figure')
     else:

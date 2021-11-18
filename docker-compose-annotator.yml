@@ -8,7 +8,7 @@ services:
     build:
       context: "dash-seg/"
       dockerfile: "docker/Dockerfile"
-    command: "python src/napp.py"
+    command: "python src/annotator.py"
     environment:
       DATA_DIR: "${PWD}/dash-seg/data/" #"${COMPOSE_PROJECT_NAME}_data-m"
     volumes:
@@ -17,9 +17,6 @@ services:
     ports:
       - "8050:8050"
       - "8057:8057"
-    networks:
-      - computing_api_default
-      - model-regist_default
 
 volumes: #create named dir and link it to the data folder, so all services can use
   data-m:
@@ -28,10 +25,3 @@ volumes: #create named dir and link it to the data folder, so all services can u
       type: "none"
       device: "${PWD}/dash-seg/data/"
       o: "bind"
-
-networks:
-  computing_api_default:
-    external: true
-  model-regist_default:
-    external: true
-    

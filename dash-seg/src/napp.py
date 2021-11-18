@@ -16,6 +16,8 @@ from flask import request
 import numpy as np
 import PIL.Image
 import plotly.graph_objects as go
+from tiled.client import from_uri
+from tiled.client.cache import Cache
 from skimage import draw
 import skimage
 import urllib.request
@@ -34,7 +36,7 @@ MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
 USER = 'mlexchange-team'
 DATA_DIR = str(os.environ['DATA_DIR'])
-
+TILED_CLIENT = from_uri("http://host.docker.internal:8057", cache=Cache.in_memory(2e9))
 
 def slider_style(n):
     return {0: '0', n: str(n)}
@@ -148,15 +150,22 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
 
     # dataset selection
     print('Loading dataset')
-    np_volume = helper_utils.dcm_to_np(dataset)
-    print('Dataset loaded')
-    image_slider_max = len(np_volume) - 1
-    if image_slider_value > image_slider_max:
-        image_slider_value = 0
-    im = helper_utils.make_default_figure(image_slider_value, np_volume, shapes,
-                                          stroke_color=helper_utils.class_to_color(label_class_value),
-                                          stroke_width=stroke_width,
-                                              image_cache=im_cache)
+    if dataset == 'tiled':
+        image_slider_max = len(TILED_CLIENT) - 1
+        if image_slider_value > image_slider_max:
+            image_slider_value = 0
+        im = helper_utils.make_default_figure(image_slider_value, TILED_CLIENT, shapes,
+                                              stroke_color=helper_utils.class_to_color(label_class_value),
+                                              stroke_width=stroke_width, image_cache=im_cache)
+    else:
+        np_volume = helper_utils.dcm_to_np(dataset)
+        print('Dataset loaded')
+        image_slider_max = len(np_volume) - 1
+        if image_slider_value > image_slider_max:
+            image_slider_value = 0
+        im = helper_utils.make_default_figure(image_slider_value, np_volume, shapes,
+                                              stroke_color=helper_utils.class_to_color(label_class_value),
+                                              stroke_width=stroke_width, image_cache=im_cache)
     
     return [im, image_slider_max, image_slider_value, slider_style(image_slider_max)]
 
@@ -380,14 +389,11 @@ def update_table(n, row):
                               )
     log = " "
     if row:
-        text = 'Type: ' + data_table[row[0]]["job_type"] + '\nStatus: ' + data_table[row[0]]["status"] + \
-               '\nDataset: ' + data_table[row[0]]["dataset"] + '\nModel: ' + data_table[row[0]]["model_name"] + \
-               '\nParameters: ' + data_table[row[0]]["parameters"]
         log = data_table[row[0]]["job_logs"]
         if log:
             start = log.find('loss')
-            if start > -1:
-                fig = helper_utils.generate_figure(log,start)
+            if start > -1 and start > len(log)-5:
+                fig = helper_utils.generate_figure(log, start)
                 return data_table, True, fig, log
     return data_table, False, go.Figure(go.Scatter(x=[], y=[])), log
 
@@ -431,7 +437,10 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
         raise PreventUpdate
 
     # dataset selection
-    np_volume = helper_utils.dcm_to_np(dataset)
+    if dataset == 'tiled':
+        np_volume = dataset
+    else:
+        np_volume = helper_utils.dcm_to_np(dataset)
     # create user directory to store users data/experiments
     data_dir_id = str(uuid.uuid4())  # create unique id for experiment
     USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
@@ -477,7 +486,10 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
 
         else:  # no uploaded data, so use default
             for im_index in image_index_with_mask:
-                im = np_volume[int(im_index)]
+                if dataset == 'tiled':
+                    im = TILED_CLIENT.values_indexer[int(im_index)].read()
+                else:
+                    im = np_volume[int(im_index)]
                 imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(im_index), im)
                 im_shape_list.append(im.shape[0:2])
 
@@ -586,7 +598,13 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, image_store_data
     # create user directory to store users data/experiments
 
     # dataset selection
-    np_volume = helper_utils.dcm_to_np(dataset)
+    if dataset == 'tiled':
+        np_volume = []
+        for n in range(len(TILED_CLIENT)):
+            np_volume.append(TILED_CLIENT.values_indexer[n].read())
+        np_volume = np.array(np_volume)
+    else:
+        np_volume = helper_utils.dcm_to_np(dataset)
     # find most recent job id (current experiment)
     data_dir_id = job_data[row[0]]["data_dir_id"]
     USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
