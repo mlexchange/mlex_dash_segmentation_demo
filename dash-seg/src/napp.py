@@ -7,6 +7,8 @@ import pathlib
 import re
 
 import dash
+import dash_bootstrap_components as dbc
+import dash_core_components as dcc
 from dash.dependencies import Input, Output, State, MATCH, ALL
 from dash.exceptions import PreventUpdate
 import imageio
@@ -82,8 +84,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
     if "Show segmentation" in show_segmentation_value:
         # get selected job id from job list
         if row is not None:
-            job_type  = job_data[row[0]]["job_type"]
-            if job_type == 'deploy':
+            if job_data[row[0]]["job_type"] == 'deploy' and dataset == job_data[row[0]]["dataset"]:
                 model_name  = job_data[row[0]]["model_name"]
                 data_dir_id = job_data[row[0]]["data_dir_id"]
                 job_id      = data_dir_id
@@ -166,21 +167,57 @@ def msg_style(color='black'):
 
 @app.callback(
     [
-        Output('msg-display', 'value'),
-        Output('msg-display', 'style')
+        Output('error-body', 'children'),
+        Output('error-msg', 'is_open'),
+        Output('error-msg', 'style'),
     ],
     [
-        Input('seg-dropdown', 'value'),
+        Input('dataset-selection', 'value'),
         Input('show-segmentation', 'value'),
         Input('jobs_table', 'selected_rows'),
+        Input("close-error", "n_clicks")
     ],
-    State('jobs_table', 'data')
+    [   
+        State('jobs_table', 'data')
+    ]
 )
-def additional_seg_features(seg_dropdown_value, show_segmentation_value, row, job_data):
+def show_message(dataset, show_segmentation_value, row, n_clicks, job_data):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     msg = ''
     msg_color = msg_style()
-    conditions = {}
-    data = model_list_GET_call()
+    is_open = False
+
+    if bool(show_segmentation_value):
+        if row is None:
+            msg_color = msg_style('red')
+            is_open = True
+            msg = "Please select deploy (segment) from the List of Jobs!"
+        else:
+            if dataset != job_data[row[0]]["dataset"]:
+                is_open = True
+                msg_color = msg_style('red')
+                msg = "Please select the correct dataset!"
+            else:
+                if job_data[row[0]]["job_type"] != 'deploy':
+                    is_open = True
+                    msg_color = msg_style('red')
+                    msg = "Please select deploy (segment) from the List of Jobs!"
+
+    if 'close-error' in changed_id:
+        is_open = False
+
+    return [msg, is_open, msg_color]
+
+
+@app.callback(
+    Output('model-source', 'children'),
+    Input('seg-dropdown', 'value'),
+)
+def update_model_source(seg_dropdown_value):
+    model_source = ''
+    conditions   = {}
+    data         = model_list_GET_call()
+    
     if seg_dropdown_value == 'Random Forest':
         conditions = {'model_name': 'random_forest'}
     elif seg_dropdown_value == 'pyMSDtorch':
@@ -190,19 +227,14 @@ def additional_seg_features(seg_dropdown_value, show_segmentation_value, row, jo
     
     if bool(conditions):
         model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
-        msg = model[0]["reference"]
-    
-    if bool(show_segmentation_value):
-        if row is None:
-            msg = 'Please select a deploy (segment) result from List of Jobs!'
-            msg_color = msg_style('red')
-        else:
-            job_type  = job_data[row[0]]["job_type"]
-            if job_type != 'deploy':
-                msg = 'Please select deploy (segment) from the List of Jobs!'
-                msg_color = msg_style('red')
+        model_source = [dbc.Label('Model Source', className='mr-2'),
+                        dcc.Textarea(id='msg-display',
+                             value=model[0]["reference"],
+                             style={'width':'100%', 'height': '3rem'},
+                             className='mb-2')
+                        ]
 
-    return [msg, msg_color]
+    return model_source
 
 
 @app.callback(

@@ -76,6 +76,26 @@ job_status_display = [
     )
 ]
 
+
+error_message = html.Div(
+    [
+        dbc.Modal(
+            [
+                dbc.ModalBody(id="error-body"),
+                dbc.ModalFooter(
+                    dbc.Button(
+                        "Close", id="close-error", className="ms-auto", n_clicks=0
+                    )
+                ),
+            ],
+            id="error-msg",
+            centered=True,
+            is_open=False,
+        ),
+    ]
+)
+
+
 # presents the image with slider
 segmentation = [
     dbc.Card(
@@ -164,18 +184,7 @@ segmentation = [
             ),
         ]
     ),
-    dbc.Card(
-        id="msg-card",
-        children=[
-            dbc.CardHeader("Message"),
-            dbc.CardBody(
-                [
-                    dcc.Textarea(id='msg-display',
-                                 value='',
-                                 style={'width':'100%', 'height': '3rem'})
-                ]
-            )
-        ]),
+    error_message,
     dbc.Collapse(
         id = 'show-plot',
         children = dbc.Card(
@@ -262,10 +271,10 @@ sidebar_label = [
                                                  ),
                                 ],
                             ),
+                            html.Div(id='model-source'),
                             html.Div(id='additional-seg-params',
                                      children=[]
-                                     ),
-
+                                    ),
                             dbc.FormGroup(
                                 [
                                     dbc.Label('Choose Deployment Location', className='mr-2'),
