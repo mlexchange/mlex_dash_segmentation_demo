@@ -84,7 +84,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
     if "Show segmentation" in show_segmentation_value:
         # get selected job id from job list
         if row is not None:
-            if job_data[row[0]]["job_type"] == 'deploy' and dataset == job_data[row[0]]["dataset"]:
+            if job_data[row[0]]["job_type"] == 'deploy':
                 model_name  = job_data[row[0]]["model_name"]
                 data_dir_id = job_data[row[0]]["data_dir_id"]
                 job_id      = data_dir_id
@@ -193,15 +193,10 @@ def show_message(dataset, show_segmentation_value, row, n_clicks, job_data):
             is_open = True
             msg = "Please select deploy (segment) from the List of Jobs!"
         else:
-            if dataset != job_data[row[0]]["dataset"]:
+            if job_data[row[0]]["job_type"] != 'deploy':
                 is_open = True
                 msg_color = msg_style('red')
-                msg = "Please select the correct dataset!"
-            else:
-                if job_data[row[0]]["job_type"] != 'deploy':
-                    is_open = True
-                    msg_color = msg_style('red')
-                    msg = "Please select deploy (segment) from the List of Jobs!"
+                msg = "Please select deploy (segment) from the List of Jobs!"
 
     if 'close-error' in changed_id:
         is_open = False
@@ -349,7 +344,7 @@ def model_list_GET_call():
     """
     Get the whole model registry data from the fastapi url.
     """
-    url = 'http://service-api:8000/api/v0/model-list'  # current host, could be inside the docker
+    url = 'http://model-api:8000/api/v0/model-list'  # current host, could be inside the docker
     response = urllib.request.urlopen(url)
     data = json.loads(response.read())
     return data
