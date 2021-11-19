@@ -449,21 +449,19 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
 
     #### save images who have a hand drawn mask
     #### save the shape of those saved images for converting mask from path to array
+    image_index_with_mask = list(masks_data.keys())
     if seg_dropdown_value == 'K-Means':
-        params = {'n_clusters': kmeans_n_clusters}
-        pth = '/app/work/' / MODEL_DIR
-        with open(pth / 'params.json', 'w') as f:
-            json.dump(params, f)
-
-        # Copy images
-        for index in range(len(np_volume)):
-            im = np_volume[index]
-            imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(index), im)
+        if bool(image_index_with_mask):
+            for im_index in image_index_with_mask:
+                im = np_volume[int(im_index)]
+                imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(im_index), im)
+        else:
+            for index in range(len(np_volume)):
+                im = np_volume[index]
+                imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(index), im)
 
     else:
         im_shape_list = []
-        image_index_with_mask = list(masks_data.keys())
-        im_list = []
         if len(image_store_data) > 0:
             for im_index in image_index_with_mask:
                 im_str = image_store_data[list(image_store_data.keys())[int(im_index)]][1]
@@ -499,7 +497,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
     if seg_dropdown_value == 'Random Forest':
         print('now doing random forest...')
         kw_args = {'model_name':  seg_dropdown_value,
-                   'directories': [str(images_dir_docker), str(feature_dir_docker)],
+                   'directories': [images_dir_docker, feature_dir_docker],
                    'parameters':  {},
                    'data_dir_id': data_dir_id,
                    'dataset': dataset
@@ -537,7 +535,6 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
 
     elif seg_dropdown_value == "K-Means":
         docker_cmd = "python kmeans.py"
-        input_params = {}
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [images_dir_docker, model_dir_docker],
                    'parameters':  input_params,
@@ -619,8 +616,8 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, image_store_data
     im_input_dir_dock = str(im_input_dir_dock)
     out_dir_dock = str(out_dir_dock)
     print('computing segmentation...')
+    meta_params = {"show_progress": 1}  # not be able for empty
     if seg_dropdown_value == "Random Forest":
-        meta_params = {"show_progress": 1}  # not be able for empty
         model_input_dir_dock = MODEL_INPUT_DIR / 'random-forest.model'
         docker_cmd = "python segment.py"
         kw_args = {'model_name':  seg_dropdown_value,
@@ -633,7 +630,6 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, image_store_data
     elif seg_dropdown_value == "pyMSDtorch":
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
         docker_cmd = "python src/segment.py"
-        meta_params= {"show_progress": 1}
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
