@@ -54,11 +54,11 @@ job_status_display = [
                     {'name': 'Dataset', 'id': 'dataset'},
                     {'name': 'Model', 'id': 'model_name'},
                     {'name': 'Parameters', 'id': 'parameters'},
-                    {'name': 'Data directory', 'id': 'data_dir_id'},
+                    {'name': 'Experiment ID', 'id': 'experiment_id'},
                     {'name': 'Logs', 'id': 'job_logs'}
                 ],
                 data = [],
-                hidden_columns = ['job_id', 'data_dir_id', 'job_logs'],
+                hidden_columns = ['job_id', 'experiment_id', 'job_logs'],
                 row_selectable='single',
                 style_cell={'padding': '1rem'}, #, 'maxWidth': '7rem', 'whiteSpace': 'normal'},
                 fixed_rows={'headers': True},
