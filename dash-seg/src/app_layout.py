@@ -286,6 +286,7 @@ sidebar_label = [
                                                      {'label': 'NERSC', 'value': 'nersc'},
                                                      {'label': 'Lab IT Cluster', 'value': 'labit'},
                                                  ],
+                                                 value='local',
                                                  style={'min-width': '250px'},
                                                  ),
                                 ],
@@ -372,6 +373,8 @@ meta = [
             dcc.Store(id="features_hash", data=""),
             dcc.Store(id='current-image-num', data=0),
             dcc.Store(id='image-store', data={}),
+            dcc.Store(id='train_counter', data=0),
+            dcc.Store(id='seg_counter', data=0)
         ],
     ),
     html.Div(id="download-dummy"),
