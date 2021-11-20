@@ -9,6 +9,8 @@ import re
 import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
+import dash_html_components as html
+
 from dash.dependencies import Input, Output, State, MATCH, ALL
 from dash.exceptions import PreventUpdate
 import imageio
@@ -25,7 +27,7 @@ import job_dispatcher
 from targeted_callbacks import targeted_callback
 from kwarg_editor import JSONParameterEditor
 import helper_utils
-from app_layout import app, MODEL_DATABASE
+from app_layout import app, MODEL_DATABASE, label_panel
 
 
 #### GLOBAL PARAMS ####
@@ -45,7 +47,8 @@ def slider_style(n):
         Output("graph", "figure"),
         Output('image-slider', 'max'),
         Output("image-slider", "value"),
-        Output("image-slider", "marks")
+        Output("image-slider", "marks"),
+        Output("image-length", "data"),
     ],
     [
         Input("image-slider", "value"),
@@ -145,7 +148,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                 )
                 im.update_layout(template='plotly_white')
                
-                return [im, image_slider_max, image_slider_value, slider_style(image_slider_max)]
+                return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max]
 
     # dataset selection
     print('Loading dataset')
@@ -159,7 +162,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                                           stroke_width=stroke_width,
                                               image_cache=im_cache)
     
-    return [im, image_slider_max, image_slider_value, slider_style(image_slider_max)]
+    return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max]
 
 
 
@@ -237,12 +240,13 @@ def update_model_source(seg_dropdown_value):
 @app.callback(
     Output('masks', 'data'),
     Input("graph", "relayoutData"),
+    Input('masks', 'data'),
     [   
         State("image-slider", "value"),
-        State('masks', 'data'),
+        #State('masks', 'data'),
      ]
 )
-def store_masks(graph_relayoutData, image_slice, masks_data):
+def store_masks(graph_relayoutData, masks_data, image_slice):
     """
     Save shapes from figure to json Store
     """
@@ -360,11 +364,13 @@ def model_list_GET_call():
         Output('show-plot', 'is_open'),
         Output('loss-plot', 'figure'),
         Output('job-logs', 'value'),
+        Output('progress-bar', 'children'),
     ],
     Input('update-training-loss', 'n_intervals'),
-    State('jobs_table', 'selected_rows')
+    Input('jobs_table', 'selected_rows'),
+    State('image-length', 'data')
 )
-def update_table(n, row):
+def update_table(n, row, m):
     """
 
     Args:
@@ -397,16 +403,23 @@ def update_table(n, row):
                                   experiment_id=job['container_kwargs']['experiment_id'],
                                   job_logs=job['container_logs'])
                               )
-
+    
+    progress = ''
     log = " "
     if row:
+        job_type = data_table[row[0]]['job_type'].split()
         log = data_table[row[0]]["job_logs"]
         if log:
+            if ' '.join(job_type[0:-1]) == 'deploy':
+                values = float(log.split("classified:")[-1])/m*100
+                labels = 'Progress: ' + str(round(values)) + '%'
+                progress = [dbc.Label(labels), dbc.Progress(value=values)]
+                
             start = log.find('loss')
             if start > -1 and  start > len(log)-5:
                 fig = helper_utils.generate_figure(log,start)
                 return data_table, True, fig, log
-    return data_table, False, go.Figure(go.Scatter(x=[], y=[])), log
+    return data_table, False, go.Figure(go.Scatter(x=[], y=[])), log, progress
 
 
 @app.callback(
@@ -477,7 +490,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
 
     #### save images who have a hand drawn mask
     #### save the shape of those saved images for converting mask from path to array
-    image_index_with_mask = list(masks_data.keys())
+    masks_data = {k:v for (k,v) in masks_data.items() if bool(v)}
+    image_index_with_mask = list(masks_data.keys()) #slice index that is labeled
     if seg_dropdown_value == 'K-Means':
          if bool(image_index_with_mask):
              for im_index in image_index_with_mask:
@@ -715,7 +729,10 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_dat
 
 
 @app.callback(
-    Output('additional-seg-params', 'children'),
+    [   Output('additional-seg-params', 'children'),
+        Output('brush-collapse', 'is_open'),
+        Output('top-right-panel', 'children')
+    ],
     Input('seg-dropdown', 'value')
 )
 def additional_seg_features(seg_dropdown_value):
@@ -732,7 +749,19 @@ def additional_seg_features(seg_dropdown_value):
                                    json_blob=model[0]["gui_parameters"],
                                    )
     gui_item.init_callbacks(app)
-    return gui_item
+    
+    is_open = True
+    panel = ''
+    if model[0]["type"] == "unsupervised":
+        is_open = not is_open
+        panel = dbc.Card(
+            style={"width": "100%"},
+            children=[
+                dbc.CardHeader("Instructions"),
+                dbc.CardBody(dbc.Label('Please mark the image slice(s) for the selected unsupervised model. Otherwise, the whole stack will be used.', className='mr-2'))
+            ])
+        
+    return [gui_item, is_open, panel]
 
 
 if __name__ == "__main__":

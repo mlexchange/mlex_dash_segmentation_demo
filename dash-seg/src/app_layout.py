@@ -214,47 +214,65 @@ segmentation = [
         ])
 ]
 
+
+label_panel = html.Div(
+    [   
+        dbc.Collapse(
+            dbc.Card(
+                id="brush-card",
+                style={"width": "100%"},
+                children=[
+                    dbc.CardHeader("Annotation Tools"),
+                    dbc.CardBody(
+                        [
+                            html.H6("Label class", className="card-title"),
+                            # Label class chosen with buttons
+                            html.Div(
+                                id="label-class-buttons",
+                                children=[
+                                    dbc.Button(
+                                        "%2d" % (n,),
+                                        id={"type": "label-class-button", "index": n},
+                                        style={"background-color": helper_utils.class_to_color(c)},
+                                    )
+                                    for n, c in enumerate(class_labels)
+                                ],
+                                className='row',
+                                style={'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'}
+                            ),
+                            html.Div([
+                                dbc.Label(
+                                    "Width of annotation paintbrush",
+                                    className="mb-3",
+                                    html_for="stroke-width"
+                                ),
+                                # Slider for specifying stroke width
+                                dcc.Slider(
+                                    id="stroke-width",
+                                    min=0,
+                                    max=6,
+                                    step=0.1,
+                                    value=DEFAULT_STROKE_WIDTH,
+                                    tooltip={"placement": "top", "always_visible": True},
+                                ),
+                            ]),
+                    ]),
+                ]),
+            id="brush-collapse",
+            is_open=True,
+        )
+    ]
+)
+
+
 # sidebar - labeling tools
 sidebar_label = [
+    html.Div(id='top-right-panel'),
+    label_panel,
     dbc.Card(
         id="sidebar-card",
         style={"width": "100%"},
         children=[
-            dbc.CardHeader("Annotation Tools"),
-            dbc.CardBody(
-                [
-                    html.H6("Label class", className="card-title"),
-                    # Label class chosen with buttons
-                    html.Div(
-                        id="label-class-buttons",
-                        children=[
-                            dbc.Button(
-                                "%2d" % (n,),
-                                id={"type": "label-class-button", "index": n},
-                                style={"background-color": helper_utils.class_to_color(c)},
-                            )
-                            for n, c in enumerate(class_labels)
-                        ],
-                        className='row',
-                        style={'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'}
-                    ),
-                    html.Div([
-                        dbc.Label(
-                            "Width of annotation paintbrush",
-                            className="mb-3",
-                            html_for="stroke-width"
-                        ),
-                        # Slider for specifying stroke width
-                        dcc.Slider(
-                            id="stroke-width",
-                            min=0,
-                            max=6,
-                            step=0.1,
-                            value=DEFAULT_STROKE_WIDTH,
-                            tooltip={"placement": "top", "always_visible": True},
-                        ),
-                    ]),
-            ]),
             dbc.CardHeader("Model"),
             dbc.CardBody(
                 [
@@ -272,9 +290,7 @@ sidebar_label = [
                                 ],
                             ),
                             html.Div(id='model-source'),
-                            html.Div(id='additional-seg-params',
-                                     children=[]
-                                    ),
+                            html.Div(id='additional-seg-params'),
                             dbc.FormGroup(
                                 [
                                     dbc.Label('Choose Deployment Location', className='mr-2'),
@@ -330,6 +346,7 @@ sidebar_label = [
                     ],
             ),
             dbc.CardHeader("List of Jobs"),
+            html.Div(id='progress-bar'),
             dbc.CardBody([
                 dbc.Row(dbc.Col(job_status_display)),
             ])
@@ -374,7 +391,8 @@ meta = [
             dcc.Store(id='current-image-num', data=0),
             dcc.Store(id='image-store', data={}),
             dcc.Store(id='train_counter', data=0),
-            dcc.Store(id='seg_counter', data=0)
+            dcc.Store(id='seg_counter', data=0),
+            dcc.Store(id='image-length', data=0),
         ],
     ),
     html.Div(id="download-dummy"),
