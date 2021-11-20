@@ -412,7 +412,7 @@ def update_table(n, row):
         if log:
             if ' '.join(job_type[0:-1]) == 'deploy':
                 values = (int(log.split("classified:")[-1])+1)/data_table[row[0]]["image_length"]*100
-                labels = 'deploy progress: ' + str(round(values)) + '%'
+                labels = 'Deploy progress: ' + str(round(values)) + '%'
                 if values <= 100 or data_table[row[0]]['status'] == 'running':
                     progress = [dbc.Label(labels), dbc.Progress(value=values)]
                 
