@@ -84,15 +84,16 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
     if "Show segmentation" in show_segmentation_value:
         # get selected job id from job list
         if row is not None:
-            if job_data[row[0]]["job_type"] == 'deploy':
+            job_type = job_data[row[0]]["job_type"].split()
+            if ' '.join(job_type[0:-1]) == 'deploy':
                 model_name  = job_data[row[0]]["model_name"]
-                data_dir_id = job_data[row[0]]["data_dir_id"]
-                job_id      = data_dir_id
+                experiment_id = job_data[row[0]]["experiment_id"]
+                job_id      = experiment_id
 
                 # needs to be run in a callback or we don't have access to 'app'
                 USER_NAME = request.authorization['username']
                 # dataset selection - based on selected job
-                np_volume = helper_utils.dcm_to_np('data/mlexchange_store/{}/{}/images/raw/segment_series.tif'.format(USER_NAME, job_id))
+                np_volume = helper_utils.dcm_to_np('data/mlexchange_store/{}/{}/images/segment_series.tif'.format(USER_NAME, job_id))
                 image_slider_max = len(np_volume) - 1
                 if image_slider_value > image_slider_max:
                     image_slider_value = 0
@@ -193,7 +194,8 @@ def show_message(dataset, show_segmentation_value, row, n_clicks, job_data):
             is_open = True
             msg = "Please select deploy (segment) from the List of Jobs!"
         else:
-            if job_data[row[0]]["job_type"] != 'deploy':
+            job_type = job_data[row[0]]["job_type"].split()
+            if ' '.join(job_type[0:-1]) != 'deploy':
                 is_open = True
                 msg_color = msg_style('red')
                 msg = "Please select deploy (segment) from the List of Jobs!"
@@ -360,82 +362,108 @@ def model_list_GET_call():
         Output('job-logs', 'value'),
     ],
     Input('update-training-loss', 'n_intervals'),
-    State('jobs_table', 'selected_rows'),
+    State('jobs_table', 'selected_rows')
 )
 def update_table(n, row):
+    """
+
+    Args:
+        n: updates table every interval of time
+        row: array, selected row from table, used to display it's logs
+
+    Returns:
+        jobs_table: list[dict], contains the details of each submitted job
+        show_plot: bool, shows the loss plot if the training model contains one
+        loss_plot: plotly, contains the loss plot
+        job_logs: str, contains the logs of the selected job
+    """
     job_list = helper_utils.get_job(USER, 'seg-demo')
     data_table = []
     if job_list is not None:
         for job in job_list:
+            job_type = job['job_type'].split()
+            if ' '.join(job_type[0:-1]) == 'deploy':
+                param = job['container_kwargs']['training_model']
+            else:
+                param = str(job['container_kwargs']['parameters'])
             data_table.insert(0,
                               dict(
-                                  job_id        = job['uid'],
-                                  job_type      = job['job_type'],
-                                  status        = job['status'],
-                                  dataset       = job['container_kwargs']['dataset'],
-                                  model_name    = job['container_kwargs']['model_name'],
-                                  parameters    = str(job['container_kwargs']['parameters']),
-                                  data_dir_id   = job['container_kwargs']['data_dir_id'],
-                                  job_logs      = job['container_logs'])
+                                  job_id=job['uid'],
+                                  job_type=job['job_type'],
+                                  status=job['status'],
+                                  dataset=job['container_kwargs']['dataset'],
+                                  model_name=job['container_kwargs']['model_name'],
+                                  parameters=param,
+                                  experiment_id=job['container_kwargs']['experiment_id'],
+                                  job_logs=job['container_logs'])
                               )
+
     log = " "
     if row:
-        text = 'Type: ' + data_table[row[0]]["job_type"] + '\nStatus: ' + data_table[row[0]]["status"] + \
-               '\nDataset: ' + data_table[row[0]]["dataset"] + '\nModel: ' + data_table[row[0]]["model_name"] + \
-               '\nParameters: ' + data_table[row[0]]["parameters"]
         log = data_table[row[0]]["job_logs"]
         if log:
             start = log.find('loss')
-            if start > -1:
+            if start > -1 and  start > len(log)-5:
                 fig = helper_utils.generate_figure(log,start)
                 return data_table, True, fig, log
     return data_table, False, go.Figure(go.Scatter(x=[], y=[])), log
 
 
 @app.callback(
-    Output('debug-print', 'children'),
+    [
+        Output('debug-print', 'children'),
+        Output('train_counter', 'data'),
+    ],
     Input('train-seg', 'n_clicks'),
     [
         State('masks', 'data'),
+        State('train_counter', 'data'),
         State('seg-dropdown', 'value'),
         State('image-store', 'data'),
         State('additional-seg-params', 'children'),
         State('dataset-selection', 'value')
     ]
 )
-def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image_store_data, children, dataset):
+def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value, image_store_data, children, dataset):
     """
-    Args:
 
-    Output:
-    debug_print_children: string to print logs
-    experiment_store_data: dict storing experimental records
-    model_trained_alert_children: update alert showing model is undergoing training
+    Args:
+        train_seg_n_clicks: dash, triggers the callback when train button is pressed
+        masks_data: array, annotations collected from user
+        cont: int, count of training jobs by this user
+        seg_dropdown_value: str, contains the selected segmentation model
+        image_store_data: dict[dict] uploaded image?
+        children: ??
+        dataset: str, selected dataset to use for training
+
+    Returns:
+        debug: ??
+        cont: int, updated training count
 
     Prepares data for segmentation job.
-    1. Convert svg path to nparray of size nxnx3 (rgb image). 0 is unlabelled, user labelled class is
-    increased by 1 (ie. user label class 0, this would be represented in the nparray as 1) This is because
-    the random forest that this is based on expects that 0 is an unlabelled pixel, so the user labels have to
-    be adjusted to take this into account.
+        1. Convert svg path to nparray of size nxnx3 (rgb image). 0 is unlabelled, user labelled class is
+           increased by 1 (ie. user label class 0, this would be represented in the nparray as 1) This is because
+           the random forest that this is based on expects that 0 is an unlabelled pixel, so the user labels have to
+           be adjusted to take this into account.
+        2. Save mask and image files into data directory that the ml_worker node has access to
 
-    2. Save mask and image files into data directory that the ml_worker node has access to
-
-    3. Create a list of job messages (uri::segmentation_docker_exec(train/deploy), uri::filename_image, uri::mask)
-
-    4. Send job messages into job dispatcher
+    References: https://dash.plotly.com/annotations
     """
-    # code from https://dash.plotly.com/annotations
 
     ### don't fire if no selection is made ###
     if (train_seg_n_clicks is None) or (seg_dropdown_value is None):
         raise PreventUpdate
 
+    # initializes the counter according to the latest training job in the database
+    if cont == 0:
+        cont = helper_utils.init_counters(USER, 'training')
+
     # dataset selection
     np_volume = helper_utils.dcm_to_np(dataset)
     # create user directory to store users data/experiments
-    data_dir_id = str(uuid.uuid4())  # create unique id for experiment
+    experiment_id = str(uuid.uuid4())  # create unique id for experiment
     USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
-    io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, data_dir_id))
+    io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, experiment_id))
     io_path.mkdir(parents=True, exist_ok=True)
 
     MASK_OUTPUT_DIR = io_path / 'masks'
@@ -451,14 +479,14 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
     #### save the shape of those saved images for converting mask from path to array
     image_index_with_mask = list(masks_data.keys())
     if seg_dropdown_value == 'K-Means':
-        if bool(image_index_with_mask):
-            for im_index in image_index_with_mask:
-                im = np_volume[int(im_index)]
-                imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(im_index), im)
-        else:
-            for index in range(len(np_volume)):
-                im = np_volume[index]
-                imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(index), im)
+         if bool(image_index_with_mask):
+             for im_index in image_index_with_mask:
+                 im = np_volume[int(im_index)]
+                 imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(im_index), im)
+         else:
+             for index in range(len(np_volume)):
+                 im = np_volume[index]
+                 imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(index), im)
 
     else:
         im_shape_list = []
@@ -499,11 +527,11 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [images_dir_docker, feature_dir_docker],
                    'parameters':  {},
-                   'data_dir_id': data_dir_id,
+                   'experiment_id': experiment_id,
                    'dataset': dataset
                    }
         feat_job = job_dispatcher.SimpleJob(user=USER,
-                                            job_type="feature generation",
+                                            job_type="feature generation " + str(cont),
                                             description="Random Forest",
                                             deploy_location="local",
                                             gpu=False,
@@ -520,7 +548,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [mask_dir_docker, feature_dir_docker, model_dir_docker],
                    'parameters': input_params,
-                   'data_dir_id': data_dir_id,
+                   'experiment_id': experiment_id,
                    'dataset': dataset
                    }
 
@@ -529,7 +557,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [mask_dir_docker, images_dir_docker, model_dir_docker],
                    'parameters':  input_params,
-                   'data_dir_id': data_dir_id,
+                   'experiment_id': experiment_id,
                    'dataset': dataset
                    }
 
@@ -538,13 +566,13 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
         kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [images_dir_docker, model_dir_docker],
                    'parameters':  input_params,
-                   'data_dir_id': data_dir_id,
+                   'experiment_id': experiment_id,
                    'dataset': dataset
                    }
 
     train_job = job_dispatcher.SimpleJob(user=USER,
-                                         job_type="training",
-                                         description="",
+                                         job_type="training " + str(cont),
+                                         description= " ",
                                          deploy_location="local",
                                          gpu=False,
                                          data_uri=str(DATA_DIR),
@@ -553,17 +581,20 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
                                          container_kwargs=kw_args,
                                          )
     train_job.launch_job()
-
+    cont = cont + 1
     print('returning')
-    return ['']
+    return ['', cont]
 
 
 @app.callback(
-    Output('classified-image-store', 'data'),
+    [
+        Output('classified-image-store', 'data'),
+        Output('seg_counter', 'data'),
+    ],
     Input('compute-seg', 'n_clicks'),
     [
-        State('seg-dropdown', 'value'),
         State('image-store', 'data'),
+        State('seg_counter', 'data'),
         State('jobs_table', 'selected_rows'),
         State('jobs_table', 'data'),
         State('dataset-selection', 'value')
@@ -571,32 +602,48 @@ def train_segmentation(train_seg_n_clicks, masks_data, seg_dropdown_value, image
 
     prevent_initial_call=True
 )
-def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, image_store_data, row, job_data, dataset):
-    '''
-    compute_seg_nclicks: dash type, if clicked triggers this func
-    seg_dropdown_value: Str, contains the str name of model to run
-    experiment_store_data: dict[dict], key: job_id, value: dict{job attributes}
-    '''
+def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_data, dataset):
+    """
+
+    Args:
+        compute_seg_n_clicks: dash type, if clicked triggers this func
+        image_store_data: dict[dict] ???
+        cont: int, count of deploy jobs for this user
+        row: array, contains the selected row in the list of jobs
+        job_data: array, lists of jobs
+        dataset: str, contains the selected dataset
+
+    Returns:
+        classified_image: array, segmentation mask
+        cont: int, updated count
+    """
 
     if compute_seg_n_clicks is None:
         raise PreventUpdate
-    # create user directory to store users data/experiments
 
+    # initializes the counter according to the latest deploy job in the database
+    if cont == 0:
+        cont = helper_utils.init_counters(USER, 'deploy')
+
+    # create user directory to store users data/experiments
     # dataset selection
     np_volume = helper_utils.dcm_to_np(dataset)
     # find most recent job id (current experiment)
-    data_dir_id = job_data[row[0]]["data_dir_id"]
+    training_experiment_id = job_data[row[0]]["experiment_id"]
+    experiment_id = str(uuid.uuid4())    # create unique experiment id
+    model_name = job_data[row[0]]["model_name"]
+    model_description = job_data[row[0]]["job_type"]
     USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
-    io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, data_dir_id))
+    io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, experiment_id))
+    train_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, training_experiment_id))
     ab_pwd = pathlib.Path().resolve()
     io_path.mkdir(parents=True, exist_ok=True)
 
-    IM_INPUT_DIR = io_path / 'images' / 'raw'
+    IM_INPUT_DIR = io_path / 'images'
     IM_INPUT_DIR.mkdir(parents=True, exist_ok=True)
     IM_INPUT_FILE = IM_INPUT_DIR / 'segment_series.tif'
     im_input_dir_dock = IM_INPUT_FILE
-    MODEL_INPUT_DIR = io_path / 'models'
-    model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
+    MODEL_INPUT_DIR = train_path / 'models'
     OUT_DIR = io_path / 'out'
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_dir_dock = OUT_DIR  # when mounted in docker container where segmentation code lives, data will be mounted in root, so we need to have the right path
@@ -617,50 +664,54 @@ def compute_seg_react(compute_seg_n_clicks, seg_dropdown_value, image_store_data
     out_dir_dock = str(out_dir_dock)
     print('computing segmentation...')
     meta_params = {"show_progress": 1}  # not be able for empty
-    if seg_dropdown_value == "Random Forest":
+    if model_name == "Random Forest":
         model_input_dir_dock = MODEL_INPUT_DIR / 'random-forest.model'
         docker_cmd = "python segment.py"
-        kw_args = {'model_name':  seg_dropdown_value,
+        kw_args = {'model_name':  model_name,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
-                   'data_dir_id': data_dir_id,
-                   'dataset': dataset
+                   'experiment_id': experiment_id,
+                   'dataset': dataset,
+                   'training_model': model_description
                    }
 
-    elif seg_dropdown_value == "pyMSDtorch":
+    elif model_name == "pyMSDtorch":
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
         docker_cmd = "python src/segment.py"
-        kw_args = {'model_name':  seg_dropdown_value,
+        kw_args = {'model_name':  model_name,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
-                   'data_dir_id': data_dir_id,
-                   'dataset': dataset
+                   'experiment_id': experiment_id,
+                   'dataset': dataset,
+                   'training_model': model_description
                    }
 
-    elif seg_dropdown_value == "K-Means":
+    elif model_name == "K-Means":
         model_input_dir_dock = MODEL_INPUT_DIR / 'kmeans.joblib'
         docker_cmd = "python segment.py"
-        kw_args = {'model_name':  seg_dropdown_value,
+        kw_args = {'model_name':  model_name,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
-                   'data_dir_id': data_dir_id,
-                   'dataset': dataset
+                   'experiment_id': experiment_id,
+                   'dataset': dataset,
+                   'training_model': model_description
                    }
 
     seg_job = job_dispatcher.SimpleJob(user=USER,
-                                       job_type="deploy",
-                                       description="",
+                                       job_type="deploy " + str(cont),
+                                       description= " ",
                                        deploy_location="local",
                                        gpu=False,
                                        data_uri=str(DATA_DIR),
-                                       container_uri=MODEL_DATABASE[seg_dropdown_value],
+                                       container_uri=MODEL_DATABASE[model_name],
                                        container_cmd=docker_cmd,
                                        container_kwargs=kw_args,
                                        )
     print(seg_job.data_uri)
     seg_job.launch_job()
+    cont = cont + 1
     print('sending images to server to be segmented')
-    return ['']
+    return ['', cont]
 
 
 @app.callback(

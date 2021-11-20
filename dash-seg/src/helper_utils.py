@@ -173,4 +173,15 @@ def post_job(job):
     return requests.post(url, json=job_dict).status_code
 
 
+def init_counters(user, job_type):
+    job_list = get_job(user, 'seg-demo')
+    if job_list is not None:
+        for job in reversed(job_list):
+            last_job = job['job_type'].split()
+            value = int(last_job[-1])
+            last_job = ' '.join(last_job[0:-1])
+            if last_job == job_type:
+                return value + 1
+    return 0
+
 
