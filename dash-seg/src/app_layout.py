@@ -52,13 +52,14 @@ job_status_display = [
                     {'name': 'Type', 'id': 'job_type'},
                     {'name': 'Status', 'id': 'status'},
                     {'name': 'Dataset', 'id': 'dataset'},
+                    {'name': 'Image length', 'id': 'image_length'},
                     {'name': 'Model', 'id': 'model_name'},
                     {'name': 'Parameters', 'id': 'parameters'},
                     {'name': 'Experiment ID', 'id': 'experiment_id'},
                     {'name': 'Logs', 'id': 'job_logs'}
                 ],
                 data = [],
-                hidden_columns = ['job_id', 'experiment_id', 'job_logs'],
+                hidden_columns = ['job_id', 'image_length', 'experiment_id', 'job_logs'],
                 row_selectable='single',
                 style_cell={'padding': '1rem'}, #, 'maxWidth': '7rem', 'whiteSpace': 'normal'},
                 fixed_rows={'headers': True},
@@ -346,7 +347,9 @@ sidebar_label = [
                     ],
             ),
             dbc.CardHeader("List of Jobs"),
-            html.Div(id='progress-bar'),
+            html.Div(id='progress-bar',
+                style={'margin-top': '0.7rem', 'margin-left': '1rem', 'margin-right': '1rem'}
+            ),
             dbc.CardBody([
                 dbc.Row(dbc.Col(job_status_display)),
             ])

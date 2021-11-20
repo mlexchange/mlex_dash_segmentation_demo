@@ -367,10 +367,9 @@ def model_list_GET_call():
         Output('progress-bar', 'children'),
     ],
     Input('update-training-loss', 'n_intervals'),
-    Input('jobs_table', 'selected_rows'),
-    State('image-length', 'data')
+    Input('jobs_table', 'selected_rows')
 )
-def update_table(n, row, m):
+def update_table(n, row):
     """
 
     Args:
@@ -398,6 +397,7 @@ def update_table(n, row, m):
                                   job_type=job['job_type'],
                                   status=job['status'],
                                   dataset=job['container_kwargs']['dataset'],
+                                  image_length = job['container_kwargs']['image_length'],
                                   model_name=job['container_kwargs']['model_name'],
                                   parameters=param,
                                   experiment_id=job['container_kwargs']['experiment_id'],
@@ -411,8 +411,8 @@ def update_table(n, row, m):
         log = data_table[row[0]]["job_logs"]
         if log:
             if ' '.join(job_type[0:-1]) == 'deploy':
-                values = float(log.split("classified:")[-1])/m*100
-                labels = 'Progress: ' + str(round(values)) + '%'
+                values = float(log.split("classified:")[-1])/data_table[row[0]]["image_length"]*100
+                labels = 'deploy progress: ' + str(round(values)) + '%'
                 progress = [dbc.Label(labels), dbc.Progress(value=values)]
                 
             start = log.find('loss')
@@ -434,10 +434,11 @@ def update_table(n, row, m):
         State('seg-dropdown', 'value'),
         State('image-store', 'data'),
         State('additional-seg-params', 'children'),
-        State('dataset-selection', 'value')
+        State('dataset-selection', 'value'),
+        State("image-length", "data")
     ]
 )
-def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value, image_store_data, children, dataset):
+def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value, image_store_data, children, dataset, image_length):
     """
 
     Args:
@@ -542,7 +543,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
                    'directories': [images_dir_docker, feature_dir_docker],
                    'parameters':  {},
                    'experiment_id': experiment_id,
-                   'dataset': dataset
+                   'dataset': dataset,
+                   'image_length': image_length
                    }
         feat_job = job_dispatcher.SimpleJob(user=USER,
                                             job_type="feature generation " + str(cont),
@@ -563,7 +565,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
                    'directories': [mask_dir_docker, feature_dir_docker, model_dir_docker],
                    'parameters': input_params,
                    'experiment_id': experiment_id,
-                   'dataset': dataset
+                   'dataset': dataset,
+                   'image_length': image_length
                    }
 
     elif seg_dropdown_value == "pyMSDtorch":
@@ -572,7 +575,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
                    'directories': [mask_dir_docker, images_dir_docker, model_dir_docker],
                    'parameters':  input_params,
                    'experiment_id': experiment_id,
-                   'dataset': dataset
+                   'dataset': dataset,
+                   'image_length': image_length
                    }
 
     elif seg_dropdown_value == "K-Means":
@@ -581,7 +585,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
                    'directories': [images_dir_docker, model_dir_docker],
                    'parameters':  input_params,
                    'experiment_id': experiment_id,
-                   'dataset': dataset
+                   'dataset': dataset,
+                   'image_length': image_length
                    }
 
     train_job = job_dispatcher.SimpleJob(user=USER,
@@ -611,12 +616,13 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
         State('seg_counter', 'data'),
         State('jobs_table', 'selected_rows'),
         State('jobs_table', 'data'),
-        State('dataset-selection', 'value')
+        State('dataset-selection', 'value'),
+        State("image-length", "data")
     ],
 
     prevent_initial_call=True
 )
-def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_data, dataset):
+def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_data, dataset, image_length):
     """
 
     Args:
@@ -686,6 +692,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_dat
                    'parameters': meta_params,
                    'experiment_id': experiment_id,
                    'dataset': dataset,
+                   'image_length': image_length,
                    'training_model': model_description
                    }
 
@@ -697,6 +704,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_dat
                    'parameters': meta_params,
                    'experiment_id': experiment_id,
                    'dataset': dataset,
+                   'image_length': image_length,
                    'training_model': model_description
                    }
 
@@ -708,6 +716,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_dat
                    'parameters': meta_params,
                    'experiment_id': experiment_id,
                    'dataset': dataset,
+                   'image_length': image_length,
                    'training_model': model_description
                    }
 
