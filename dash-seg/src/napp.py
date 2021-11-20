@@ -411,9 +411,10 @@ def update_table(n, row):
         log = data_table[row[0]]["job_logs"]
         if log:
             if ' '.join(job_type[0:-1]) == 'deploy':
-                values = float(log.split("classified:")[-1])/data_table[row[0]]["image_length"]*100
+                values = (int(log.split("classified:")[-1])+1)/data_table[row[0]]["image_length"]*100
                 labels = 'deploy progress: ' + str(round(values)) + '%'
-                progress = [dbc.Label(labels), dbc.Progress(value=values)]
+                if values <= 100 or data_table[row[0]]['status'] == 'running':
+                    progress = [dbc.Label(labels), dbc.Progress(value=values)]
                 
             start = log.find('loss')
             if start > -1 and  start > len(log)-5:
