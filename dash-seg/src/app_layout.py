@@ -234,7 +234,7 @@ label_panel = html.Div(
                                     dbc.Button(
                                         "%2d" % (n,),
                                         id={"type": "label-class-button", "index": n},
-                                        style={"background-color": helper_utils.class_to_color(c)},
+                                        style={'margin-left': '0.1rem', 'margin-right': '0.1rem', "background-color": helper_utils.class_to_color(c)},
                                     )
                                     for n, c in enumerate(class_labels)
                                 ],
