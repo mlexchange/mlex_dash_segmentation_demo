@@ -417,9 +417,9 @@ def update_table(n, row):
                     progress = [dbc.Label(labels), dbc.Progress(value=values)]
                 
             start = log.find('loss')
-            if start > -1 and  start > len(log)-5:
+            if start > -1 and len(log) > start-5:
                 fig = helper_utils.generate_figure(log,start)
-                return data_table, True, fig, log
+                return data_table, True, fig, log, progress
     return data_table, False, go.Figure(go.Scatter(x=[], y=[])), log, progress
 
 
