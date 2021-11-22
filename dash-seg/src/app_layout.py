@@ -281,13 +281,6 @@ label_panel = html.Div(
     ]
 )
 
-# panel = dbc.Card(
-#             style={"width": "100%"},
-#             children=[
-#                 dbc.CardHeader("Instructions"),
-#                 dbc.CardBody(dbc.Label('Please mark the image slice(s) for the selected unsupervised model. Otherwise, the whole stack will be used.', className='mr-2'))
-#             ])
-
 # sidebar - labeling tools
 sidebar_label = [
     label_panel,
