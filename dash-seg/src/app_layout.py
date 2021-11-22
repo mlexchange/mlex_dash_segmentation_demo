@@ -217,54 +217,76 @@ segmentation = [
 
 
 label_panel = html.Div(
-    [   
-        dbc.Collapse(
-            dbc.Card(
-                id="brush-card",
-                style={"width": "100%"},
-                children=[
-                    dbc.CardHeader("Annotation Tools"),
-                    dbc.CardBody(
-                        [
-                            html.H6("Label class", className="card-title"),
-                            # Label class chosen with buttons
-                            html.Div(
-                                id="label-class-buttons",
-                                children=[
-                                    dbc.Button(
-                                        "%2d" % (n,),
-                                        id={"type": "label-class-button", "index": n},
-                                        style={'margin-left': '0.1rem', 'margin-right': '0.1rem', "background-color": helper_utils.class_to_color(c)},
-                                    )
-                                    for n, c in enumerate(class_labels)
-                                ],
-                                className='row',
-                                style={'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'}
+    [dbc.Card(
+        id="brush-card",
+        style={"width": "100%"},
+        children=[
+            dbc.Collapse(children=[
+                dbc.CardHeader("Annotation Tools"),
+                dbc.CardBody(
+                    [
+                        html.H6("Label class", className="card-title"),
+                        # Label class chosen with buttons
+                        html.Div(
+                            id="label-class-buttons",
+                            children=[
+                                dbc.Button(
+                                    "%2d" % (n,),
+                                    id={"type": "label-class-button", "index": n},
+                                    style={'margin-left': '0.1rem', 'margin-right': '0.1rem', "background-color": helper_utils.class_to_color(c)},
+                                )
+                                for n, c in enumerate(class_labels)
+                            ],
+                            className='row',
+                            style={'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'}
+                        ),
+                        html.Div([
+                            dbc.Label(
+                                "Width of annotation paintbrush",
+                                className="mb-3",
+                                html_for="stroke-width"
                             ),
-                            html.Div([
-                                dbc.Label(
-                                    "Width of annotation paintbrush",
-                                    className="mb-3",
-                                    html_for="stroke-width"
-                                ),
-                                # Slider for specifying stroke width
-                                dcc.Slider(
-                                    id="stroke-width",
-                                    min=0,
-                                    max=6,
-                                    step=0.1,
-                                    value=DEFAULT_STROKE_WIDTH,
-                                    tooltip={"placement": "top", "always_visible": True},
-                                ),
-                            ]),
-                    ]),
-                ]),
-            id="brush-collapse",
-            is_open=True,
-        )
+                            # Slider for specifying stroke width
+                            dcc.Slider(
+                                id="stroke-width",
+                                min=0,
+                                max=6,
+                                step=0.1,
+                                value=DEFAULT_STROKE_WIDTH,
+                                tooltip={"placement": "top", "always_visible": True},
+                            )
+                        ], style={'align-items': 'center', 'justify-content': 'center', 'margin-bottom': '0rem'}),
+                    ])],
+                id="brush-collapse",
+                is_open=True,
+                style = {'margin-bottom': '-2rem'}
+            ),
+            dbc.Collapse(
+                children = [dbc.CardHeader("Instructions"),
+                dbc.CardBody(
+                    dbc.Label('Please mark the image slice(s) for the selected unsupervised model. \
+                    Otherwise, the whole stack will be used.', className='mr-2'))],
+                id="instructions-collapse",
+                is_open=False,
+                style = {'margin-bottom': '-1rem'}
+            ),
+            dbc.Col(dbc.Button('Delete Annotations',
+                       id='del-mask',
+                       n_clicks=0,
+                       outline=True,
+                       className='m-1',
+                       style={'width': '95%'}),
+                    style = {'margin-top': '0rem', 'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'})
+        ]),
     ]
 )
 
+# panel = dbc.Card(
+#             style={"width": "100%"},
+#             children=[
+#                 dbc.CardHeader("Instructions"),
+#                 dbc.CardBody(dbc.Label('Please mark the image slice(s) for the selected unsupervised model. Otherwise, the whole stack will be used.', className='mr-2'))
+#             ])
 
 # sidebar - labeling tools
 sidebar_label = [
