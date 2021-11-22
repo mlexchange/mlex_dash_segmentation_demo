@@ -290,7 +290,6 @@ label_panel = html.Div(
 
 # sidebar - labeling tools
 sidebar_label = [
-    html.Div(id='top-right-panel'),
     label_panel,
     dbc.Card(
         id="sidebar-card",

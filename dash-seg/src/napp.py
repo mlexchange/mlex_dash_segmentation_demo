@@ -731,8 +731,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_dat
 @app.callback(
     [   Output('additional-seg-params', 'children'),
         Output('brush-collapse', 'is_open'),
-        Output('instructions-collapse', 'is_open'),
-        Output('top-right-panel', 'children')
+        Output('instructions-collapse', 'is_open')
     ],
     Input('seg-dropdown', 'value')
 )
@@ -752,11 +751,10 @@ def additional_seg_features(seg_dropdown_value):
     gui_item.init_callbacks(app)
     
     is_open = True
-    panel = ''
     if model[0]["type"] == "unsupervised":
         is_open = not is_open
         
-    return [gui_item, is_open, not is_open, panel]
+    return [gui_item, is_open, not is_open]
 
 
 if __name__ == "__main__":
