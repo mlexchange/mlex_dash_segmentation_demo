@@ -133,7 +133,7 @@ def generate_figure(log, start):
     if end == -1:
         end = len(log)
     log = log[start:end]
-    df = pd.read_csv(StringIO(log.replace('\n\n','\n')), sep=',')
+    df = pd.read_csv(StringIO(log.replace('\n\n','\n')), sep='\t')
     fig = px.line(df)
     fig.update_layout(xaxis_title="epoch", yaxis_title="loss", margin=dict(l=20, r=20, t=20, b=20))
     return fig
@@ -141,7 +141,6 @@ def generate_figure(log, start):
 
 def get_job(user, mlex_app, job_type=None, deploy_location=None):
     url = 'http://job-service:8080/api/v0/jobs?'
-    # url = 'http://host.docker.internal:8080/api/v0/jobs?'
     if user:
         url += ('&user=' + user)
     if mlex_app:
@@ -157,7 +156,6 @@ def get_job(user, mlex_app, job_type=None, deploy_location=None):
 
 def post_job(job):
     url = 'http://job-service:8080/api/v0/jobs'
-    # url = 'http://host.docker.internal:8080/api/v0/jobs'
     job_dict = {"user": job.user,
                 "mlex_app": job.mlex_app,
                 "job_type": job.job_type,
@@ -169,7 +167,6 @@ def post_job(job):
                 "container_cmd": job.container_cmd,
                 "container_kwargs": job.container_kwargs
                 }
-    print(f'job dict\n{json.dumps(job_dict)}')
     return requests.post(url, json=job_dict).status_code
 
 

@@ -9,7 +9,6 @@ import re
 import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
-import dash_html_components as html
 
 from dash.dependencies import Input, Output, State, MATCH, ALL
 from dash.exceptions import PreventUpdate
@@ -24,10 +23,9 @@ import urllib.request
 import uuid
 
 import job_dispatcher
-from targeted_callbacks import targeted_callback
 from kwarg_editor import JSONParameterEditor
 import helper_utils
-from app_layout import app, MODEL_DATABASE, label_panel
+from app_layout import app, MODEL_DATABASE
 
 
 #### GLOBAL PARAMS ####
@@ -59,12 +57,10 @@ def slider_style(n):
         Input('image-store', 'data'),
         Input('stroke-width', 'value'),
         Input('jobs_table', 'selected_rows'),
-        Input('dataset-selection', 'value')
+        Input('dataset-selection', 'value'),
+        Input('masks', 'data'),
     ],
-    [
-        State('masks', 'data'),
-        State('jobs_table', 'data')
-     ]
+    State('jobs_table', 'data')
 )
 def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, image_store_data,
                   stroke_width, row, dataset, masks_data, job_data):
@@ -81,7 +77,6 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
     # plot the new figure
     if len(image_store_data) > 0:
         im_cache = image_store_data[list(image_store_data.keys())[image_slider_value]][1]
-        print(image_store_data[list(image_store_data.keys())[image_slider_value]][0])
     else:
         im_cache = None
     if "Show segmentation" in show_segmentation_value:
@@ -151,9 +146,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                 return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max]
 
     # dataset selection
-    print('Loading dataset')
     np_volume = helper_utils.dcm_to_np(dataset)
-    print('Dataset loaded')
     image_slider_max = len(np_volume) - 1
     if image_slider_value > image_slider_max:
         image_slider_value = 0
@@ -239,31 +232,34 @@ def update_model_source(seg_dropdown_value):
 
 @app.callback(
     Output('masks', 'data'),
-    Input("graph", "relayoutData"),
+    Output('graph', 'relayoutData'),
+    Input('del-mask', 'n_clicks'),
+    Input('graph', 'relayoutData'),
     Input('masks', 'data'),
-    [   
-        State("image-slider", "value"),
-        #State('masks', 'data'),
-     ]
+    State('image-slider', 'value')
 )
-def store_masks(graph_relayoutData, masks_data, image_slice):
+def store_masks(n, graph_relayoutData, masks_data, image_slice):
     """
     Save shapes from figure to json Store
     """
     if graph_relayoutData is not None:
-        if 'shapes' in graph_relayoutData.keys():
-            masks_data[image_slice] = graph_relayoutData['shapes']
-        # change shape path if shape has been updated
-        elif any(["shapes" in key for key in graph_relayoutData]):
-            for key in graph_relayoutData:
-                if 'shapes' in key:
-                    # get index of edited shape
-                    shape_index_re = re.compile('shapes\[(\d*)\].path')  # fragile, probably break on dash update
-                    shape_index = int(shape_index_re.match(key).group(1))
-                    masks_data[str(image_slice)][shape_index]['path'] = graph_relayoutData[key]
+        changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+        if 'del-mask' in changed_id:
+            return {}, {}
         else:
-            return dash.no_update
-    return masks_data
+            if 'shapes' in graph_relayoutData.keys():
+                masks_data[image_slice] = graph_relayoutData['shapes']
+            # change shape path if shape has been updated
+            elif any(["shapes" in key for key in graph_relayoutData]):
+                for key in graph_relayoutData:
+                    if 'shapes' in key:
+                        # get index of edited shape
+                        shape_index_re = re.compile('shapes\[(\d*)\].path')  # fragile, probably break on dash update
+                        shape_index = int(shape_index_re.match(key).group(1))
+                        masks_data[str(image_slice)][shape_index]['path'] = graph_relayoutData[key]
+            else:
+                return dash.no_update, dash.no_update
+    return masks_data, dash.no_update
 
 
 class mask_tasks():
@@ -303,7 +299,6 @@ class mask_tasks():
         # all classes need to be shifted up by one for the labelling.
         for line in lines:
             mask[line[0], line[1]] = class_n + 1
-        print(class_n)
         # don't want to have filled paths, just draw mask where the stroke is
         # so commented out below
         #        mask = ndimage.binary_fill_holes(mask)
@@ -323,11 +318,8 @@ class mask_tasks():
         """
         mask_output_dir = pathlib.Path(mask_output_dir)
         mask_names = []
-        print(masks_data.keys())
         for i, key in enumerate(masks_data):
-            print('mask index: {}'.format(key))
             shapes = masks_data[key]
-            print('mask shapes: {}'.format(shapes))
             masks = np.zeros(image_shape_list[i])
 
             masks_image = np.ones((*image_shape_list[i], 3), dtype=np.uint8)  ## assume rgb data
@@ -340,7 +332,6 @@ class mask_tasks():
                 masks[c_mask > 0] = c_mask[c_mask > 0]
 
             mask_f_name = str(mask_output_dir / 'n-{}'.format(key))
-            print(mask_f_name)
             sav_return = np.savetxt(mask_f_name, masks)
             mask_names.append(mask_f_name)
         return mask_names
@@ -731,7 +722,6 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_dat
                                        container_cmd=docker_cmd,
                                        container_kwargs=kw_args,
                                        )
-    print(seg_job.data_uri)
     seg_job.launch_job()
     cont = cont + 1
     print('sending images to server to be segmented')
@@ -741,7 +731,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_dat
 @app.callback(
     [   Output('additional-seg-params', 'children'),
         Output('brush-collapse', 'is_open'),
-        Output('top-right-panel', 'children')
+        Output('instructions-collapse', 'is_open')
     ],
     Input('seg-dropdown', 'value')
 )
@@ -761,17 +751,10 @@ def additional_seg_features(seg_dropdown_value):
     gui_item.init_callbacks(app)
     
     is_open = True
-    panel = ''
     if model[0]["type"] == "unsupervised":
         is_open = not is_open
-        panel = dbc.Card(
-            style={"width": "100%"},
-            children=[
-                dbc.CardHeader("Instructions"),
-                dbc.CardBody(dbc.Label('Please mark the image slice(s) for the selected unsupervised model. Otherwise, the whole stack will be used.', className='mr-2'))
-            ])
         
-    return [gui_item, is_open, panel]
+    return [gui_item, is_open, not is_open]
 
 
 if __name__ == "__main__":
