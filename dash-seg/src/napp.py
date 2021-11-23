@@ -162,6 +162,25 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
 def msg_style(color='black'):
     return {'width':'100%', 'height': '3rem', 'color': color} 
 
+def return_msg(job_data, row, jobType, color, message):
+    msg =''
+    msg_color = msg_style()
+    is_open = False
+    
+    if row is None:
+        msg_color = msg_style(color)
+        is_open = True
+        msg = message
+    else:
+        job_type = job_data[row[0]]["job_type"].split()
+        if ' '.join(job_type[0:-1]) != jobType:
+            is_open = True
+            msg_color = msg_style(color)
+            msg = message
+    
+    return msg_color, msg, is_open
+
+
 @app.callback(
     [
         Output('error-body', 'children'),
@@ -172,30 +191,27 @@ def msg_style(color='black'):
         Input('dataset-selection', 'value'),
         Input('show-segmentation', 'value'),
         Input('jobs_table', 'selected_rows'),
-        Input("close-error", "n_clicks")
+        Input("close-error", "n_clicks"),
+        Input("compute-seg", "n_clicks")
     ],
     [   
         State('jobs_table', 'data')
     ]
 )
-def show_message(dataset, show_segmentation_value, row, n_clicks, job_data):
+def show_message(dataset, show_segmentation_value, row, n_clicks1, n_clicks2, job_data):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    msg = ''
+    msg =''
     msg_color = msg_style()
     is_open = False
+    msg1 = "Please select a deploy (segment) from the List of Jobs!"
+    msg2 = "Please select a training from the List of Jobs!"
 
     if bool(show_segmentation_value):
-        if row is None:
-            msg_color = msg_style('red')
-            is_open = True
-            msg = "Please select deploy (segment) from the List of Jobs!"
-        else:
-            job_type = job_data[row[0]]["job_type"].split()
-            if ' '.join(job_type[0:-1]) != 'deploy':
-                is_open = True
-                msg_color = msg_style('red')
-                msg = "Please select deploy (segment) from the List of Jobs!"
+        msg_color, msg, is_open = return_msg(job_data, row, 'deploy', 'red', msg1)
 
+    if 'compute-seg' in changed_id:
+        msg_color, msg, is_open = return_msg(job_data, row, 'training', 'red', msg2)
+    
     if 'close-error' in changed_id:
         is_open = False
 
@@ -430,13 +446,13 @@ def update_table(n, row):
         State("image-length", "data")
     ]
 )
-def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value, image_store_data, children, dataset, image_length):
+def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value, image_store_data, children, dataset, image_length):
     """
 
     Args:
         train_seg_n_clicks: dash, triggers the callback when train button is pressed
         masks_data: array, annotations collected from user
-        cont: int, count of training jobs by this user
+        count: int, count of training jobs by this user
         seg_dropdown_value: str, contains the selected segmentation model
         image_store_data: dict[dict] uploaded image?
         children: ??
@@ -444,7 +460,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
 
     Returns:
         debug: ??
-        cont: int, updated training count
+        count: int, updated training count
 
     Prepares data for segmentation job.
         1. Convert svg path to nparray of size nxnx3 (rgb image). 0 is unlabelled, user labelled class is
@@ -461,8 +477,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
         raise PreventUpdate
 
     # initializes the counter according to the latest training job in the database
-    if cont == 0:
-        cont = helper_utils.init_counters(USER, 'training')
+    if count == 0:
+        count = helper_utils.init_counters(USER, 'training')
 
     # dataset selection
     np_volume = helper_utils.dcm_to_np(dataset)
@@ -538,16 +554,17 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
                    'dataset': dataset,
                    'image_length': image_length
                    }
-        feat_job = job_dispatcher.SimpleJob(user=USER,
-                                            job_type="feature generation " + str(cont),
-                                            description="Random Forest",
-                                            deploy_location="local",
-                                            gpu=False,
-                                            data_uri=DATA_DIR,
-                                            container_uri=MODEL_DATABASE[seg_dropdown_value],
-                                            container_cmd='python feature_generation.py',
-                                            container_kwargs=kw_args,
-                                            )
+        feat_job = job_dispatcher.SimpleJob(
+                    user=USER,
+                    job_type="feature generation " + str(count),
+                    description="Random Forest",
+                    deploy_location="local",
+                    gpu=False,
+                    data_uri=DATA_DIR,
+                    container_uri=MODEL_DATABASE[seg_dropdown_value],
+                    container_cmd='python feature_generation.py',
+                    container_kwargs=kw_args,
+                    )
 
         feat_job.launch_job()
         print('launched feature extraction on ml server')
@@ -582,7 +599,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
                    }
 
     train_job = job_dispatcher.SimpleJob(user=USER,
-                                         job_type="training " + str(cont),
+                                         job_type="training " + str(count),
                                          description= " ",
                                          deploy_location="local",
                                          gpu=False,
@@ -592,9 +609,9 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
                                          container_kwargs=kw_args,
                                          )
     train_job.launch_job()
-    cont = cont + 1
+    count += 1
     print('returning')
-    return ['', cont]
+    return ['', count]
 
 
 @app.callback(
@@ -602,7 +619,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
         Output('classified-image-store', 'data'),
         Output('seg_counter', 'data'),
     ],
-    Input('compute-seg', 'n_clicks'),
+        Input('compute-seg', 'n_clicks'),
     [
         State('image-store', 'data'),
         State('seg_counter', 'data'),
@@ -614,28 +631,32 @@ def train_segmentation(train_seg_n_clicks, masks_data, cont, seg_dropdown_value,
 
     prevent_initial_call=True
 )
-def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_data, dataset, image_length):
+def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_data, dataset, image_length):
     """
 
     Args:
         compute_seg_n_clicks: dash type, if clicked triggers this func
         image_store_data: dict[dict] ???
-        cont: int, count of deploy jobs for this user
+        count: int, count of deploy jobs for this user
         row: array, contains the selected row in the list of jobs
         job_data: array, lists of jobs
         dataset: str, contains the selected dataset
 
     Returns:
         classified_image: array, segmentation mask
-        cont: int, updated count
+        count: int, updated count
     """
 
-    if compute_seg_n_clicks is None:
+    if compute_seg_n_clicks is None or not bool(row):
         raise PreventUpdate
+    
+    job_type = job_data[row[0]]["job_type"].split()
+    if ' '.join(job_type[0:-1]) != 'training':
+         raise PreventUpdate
 
     # initializes the counter according to the latest deploy job in the database
-    if cont == 0:
-        cont = helper_utils.init_counters(USER, 'deploy')
+    if count == 0:
+        count = helper_utils.init_counters(USER, 'deploy')
 
     # create user directory to store users data/experiments
     # dataset selection
@@ -712,20 +733,22 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, cont, row, job_dat
                    'training_model': model_description
                    }
 
-    seg_job = job_dispatcher.SimpleJob(user=USER,
-                                       job_type="deploy " + str(cont),
-                                       description= " ",
-                                       deploy_location="local",
-                                       gpu=False,
-                                       data_uri=str(DATA_DIR),
-                                       container_uri=MODEL_DATABASE[model_name],
-                                       container_cmd=docker_cmd,
-                                       container_kwargs=kw_args,
-                                       )
+    seg_job = job_dispatcher.SimpleJob(
+                    user=USER,
+                    job_type="deploy " + str(count),
+                    description= " ",
+                    deploy_location="local",
+                    gpu=False,
+                    data_uri=str(DATA_DIR),
+                    container_uri=MODEL_DATABASE[model_name],
+                    container_cmd=docker_cmd,
+                    container_kwargs=kw_args,
+                    )
+
     seg_job.launch_job()
-    cont = cont + 1
+    count += 1
     print('sending images to server to be segmented')
-    return ['', cont]
+    return ['', count]
 
 
 @app.callback(
