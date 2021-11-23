@@ -61,7 +61,7 @@ job_status_display = [
                 data = [],
                 hidden_columns = ['job_id', 'image_length', 'experiment_id', 'job_logs'],
                 row_selectable='single',
-                style_cell={'padding': '1rem'}, #, 'maxWidth': '7rem', 'whiteSpace': 'normal'},
+                style_cell={'padding': '1rem', 'textAlign': 'left'}, #, 'maxWidth': '7rem', 'whiteSpace': 'normal'},
                 fixed_rows={'headers': True},
                 css=[{"selector": ".show-hide", "rule": "display: none"}],
                 style_data_conditional=[
@@ -71,7 +71,8 @@ job_status_display = [
                     {'if': {'column_id': 'status', 'filter_query': '{status} = failed'},
                      'backgroundColor': 'red',
                      'color': 'white'}
-                ]
+                ],
+                style_table={'height':'18rem', 'overflowY': 'auto'}
             )
         ]
     )
@@ -135,8 +136,6 @@ segmentation = [
                     ),
             dbc.CardFooter(
                 [
-                    # Download links
-                    html.A(id="download", download="classifier.json",),
                     html.Div(
                         children=[
                                 dbc.Row(
@@ -156,31 +155,12 @@ segmentation = [
                                                             tooltip={"placement": "top", "always_visible": True},
                                                             marks={0: '0', 199: '199'},
                                                           )],
-                                            style={'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'}
+                                            style={'margin-bottom': '0rem', 'align-items': 'center', 'justify-content': 'center'}
                                         ), 
                                     md=10),
                                 ),
-                                dbc.Row(
-                                    dbc.ButtonGroup(
-                                        [
-                                            dbc.Button(
-                                                "Download classified image",
-                                                id="download-image-button",
-                                                outline=True,
-                                            ),
-                                            dbc.Button(
-                                                "Download classifier",
-                                                id="download-button",
-                                                outline=True,
-                                            )
-                                        ],
-                                        size="lg",
-                                        style={"width": "100%"},
-                                    ),
-                                ),
                         ],
-                    ),
-                    html.A(id="download-image", download="classified-image.png",),
+                    )
                 ]
             ),
         ]
@@ -202,17 +182,14 @@ segmentation = [
         )
     ),
     dbc.Card(
-        id="logs-card",
-        children=[
-            dbc.CardHeader("Job Logs"),
-            dbc.CardBody(
-                [
-                    dcc.Textarea(id='job-logs',
-                                 value='',
-                                 style={'width':'100%', 'height': '10rem'})
-                ]
-            )
-        ])
+        children = [
+            dbc.CardHeader("List of Jobs"),
+            html.Div(id='progress-bar',
+                     style={'margin-top': '0.7rem', 'margin-left': '1rem', 'margin-right': '1rem'}),
+            dbc.CardBody([dbc.Row(dbc.Col(job_status_display)),])
+        ],
+        style={'height':'26rem'}
+    )
 ]
 
 
@@ -360,13 +337,14 @@ sidebar_label = [
                             ]),
                     ],
             ),
-            dbc.CardHeader("List of Jobs"),
-            html.Div(id='progress-bar',
-                style={'margin-top': '0.7rem', 'margin-left': '1rem', 'margin-right': '1rem'}
-            ),
-            dbc.CardBody([
-                dbc.Row(dbc.Col(job_status_display)),
-            ])
+            dbc.CardHeader("Job Logs"),
+            dbc.CardBody(
+                [
+                    dcc.Textarea(id='job-logs',
+                                 value='',
+                                 style={'width': '100%', 'height': '10rem'})
+                ]
+            )
         ],
     ),
 ]
@@ -411,9 +389,7 @@ meta = [
             dcc.Store(id='seg_counter', data=0),
             dcc.Store(id='image-length', data=0),
         ],
-    ),
-    html.Div(id="download-dummy"),
-    html.Div(id="download-image-dummy"),
+    )
 ]
 
 
