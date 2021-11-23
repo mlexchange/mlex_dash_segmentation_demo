@@ -270,7 +270,7 @@ label_panel = html.Div(
                 is_open=False,
                 style = {'margin-bottom': '-1rem'}
             ),
-            dbc.Col(dbc.Button('Delete Annotations',
+            dbc.Col(dbc.Button('Delete All Annotations',
                        id='del-mask',
                        n_clicks=0,
                        outline=True,
