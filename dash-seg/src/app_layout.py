@@ -13,7 +13,7 @@ import numpy as np
 ### GLOBAL VARIABLES
 SEG_FEATURE_TYPES = ["intensity", "edges", "texture"]
 NUM_LABEL_CLASSES = 5
-class_labels = np.arange(NUM_LABEL_CLASSES)
+class_labels = list(range(NUM_LABEL_CLASSES))
 np_volume = helper_utils.dcm_to_np('data/bead_pack.tif')
 DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 # hardcoded model database as dict
