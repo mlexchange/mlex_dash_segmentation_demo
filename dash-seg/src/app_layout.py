@@ -8,11 +8,12 @@ import dash_table
 import helper_utils
 ##### TEMPLATE MODULES
 import templates
+import numpy as np
 
 ### GLOBAL VARIABLES
 SEG_FEATURE_TYPES = ["intensity", "edges", "texture"]
 NUM_LABEL_CLASSES = 5
-class_labels = list(range(NUM_LABEL_CLASSES))
+class_labels = np.arange(1, NUM_LABEL_CLASSES+1)
 np_volume = helper_utils.dcm_to_np('data/bead_pack.tif')
 DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 # hardcoded model database as dict
@@ -208,8 +209,8 @@ label_panel = html.Div(
                             id="label-class-buttons",
                             children=[
                                 dbc.Button(
-                                    "%2d" % (n,),
-                                    id={"type": "label-class-button", "index": n},
+                                    "%2d" % (n+1,),
+                                    id={"type": "label-class-button", "index": n+1},
                                     style={'margin-left': '0.1rem', 'margin-right': '0.1rem', "background-color": helper_utils.class_to_color(c)},
                                 )
                                 for n, c in enumerate(class_labels)

@@ -29,7 +29,7 @@ from app_layout import app, MODEL_DATABASE
 
 
 #### GLOBAL PARAMS ####
-DEFAULT_LABEL_CLASS = 0
+DEFAULT_LABEL_CLASS = 1
 MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
 USER = 'mlexchange-team'
@@ -73,7 +73,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
         label_class_value = max(
             enumerate(any_label_class_button_value),
             key=lambda t: 0 if t[1] is None else t[1],
-        )[0]
+        )[0] + 1
     # plot the new figure
     if len(image_store_data) > 0:
         im_cache = image_store_data[list(image_store_data.keys())[image_slider_value]][1]
@@ -311,7 +311,7 @@ class mask_tasks():
 
         # rr, cc = draw.polygon_perimeter(rows, cols) # change to draw.polygon to have filled holes
         mask = np.zeros(shape, dtype=int)
-        # output mask also starts with 0
+        # output mask also starts from 1
         for line in lines:
             mask[line[0], line[1]] = class_n 
         # don't want to have filled paths, just draw mask where the stroke is

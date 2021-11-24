@@ -15,8 +15,8 @@ import plotly.express as px
 import requests
 import urllib
 
-class_label_colormap = ["#009E73", "#E69F00", "#56B4E9", "#F0E442", "#8F00FF", "#ff4f00"]
-RGB_colormap = [(0,158,115), (230,159,0), (86,180,233),(240,228,66),(143,0,255),(255,79,0)]
+class_label_colormap = ["#ff4f00", "#009E73", "#E69F00", "#56B4E9", "#F0E442", "#8F00FF"]
+RGB_colormap = [(255,79,0), (0,158,115), (230,159,0), (86,180,233),(240,228,66),(143,0,255)]
 
 
 #### HELPER UTILS
@@ -91,7 +91,7 @@ def look_up_seg(d, key):
     return img
 
 
-def make_default_figure(image_index, np_volume, shapes=[], stroke_color=class_label_colormap[-1], stroke_width=3, image_cache=None):
+def make_default_figure(image_index, np_volume, shapes=[], stroke_color=class_label_colormap[1], stroke_width=3, image_cache=None):
     if image_cache is None:
         im = np_volume[image_index]
         width, height = im.shape[0:2]
