@@ -15,8 +15,8 @@ import plotly.express as px
 import requests
 import urllib
 
-class_label_colormap = ["#009E73", "#E69F00", "#56B4E9", "#F0E442", "#8F00FF", "#ff4f00"]
-RGB_colormap = [(0,158,115), (230,159,0), (86,180,233),(240,228,66),(143,0,255),(255,79,0)]
+class_label_colormap = ["#E69F00", "#8F00FF", "#56B4E9", "#009E73", "#F0E442", "#ff4f00"]
+RGB_colormap = [(230,159,0), (143,0,255), (86,180,233), (0,158,115), (240,228,66), (255,79,0)]
 
 
 #### HELPER UTILS
