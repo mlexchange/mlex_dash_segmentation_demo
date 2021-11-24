@@ -314,7 +314,7 @@ class mask_tasks():
         # the plus one is because zero is taken as an unlabled pixel, so
         # all classes need to be shifted up by one for the labelling.
         for line in lines:
-            mask[line[0], line[1]] = class_n + 1
+            mask[line[0], line[1]] = class_n 
         # don't want to have filled paths, just draw mask where the stroke is
         # so commented out below
         #        mask = ndimage.binary_fill_holes(mask)
