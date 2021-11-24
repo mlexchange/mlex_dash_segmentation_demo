@@ -310,11 +310,10 @@ class mask_tasks():
         lines = [draw.line_aa(r0, c0, r1, c1) for r0, c0, r1, c1 in zip(rows[:-1], cols[:-1], rows[1:], cols[1:])]
 
         # rr, cc = draw.polygon_perimeter(rows, cols) # change to draw.polygon to have filled holes
-        mask = np.zeros(shape, dtype=int)
-        # the plus one is because zero is taken as an unlabled pixel, so
-        # all classes need to be shifted up by one for the labelling.
+        mask = np.zeros(shape, dtype=int) -1
+        # output label starts from 0
         for line in lines:
-            mask[line[0], line[1]] = class_n + 1
+            mask[line[0], line[1]] = class_n 
         # don't want to have filled paths, just draw mask where the stroke is
         # so commented out below
         #        mask = ndimage.binary_fill_holes(mask)
@@ -336,7 +335,7 @@ class mask_tasks():
         mask_names = []
         for i, key in enumerate(masks_data):
             shapes = masks_data[key]
-            masks = np.zeros(image_shape_list[i])
+            masks = np.zeros(image_shape_list[i])-1
 
             masks_image = np.ones((*image_shape_list[i], 3), dtype=np.uint8)  ## assume rgb data
 
@@ -345,7 +344,7 @@ class mask_tasks():
                                             image_shape_list[i])
 
                 # update mask to include new shape
-                masks[c_mask > 0] = c_mask[c_mask > 0]
+                masks[c_mask > -1] = c_mask[c_mask > -1]
 
             mask_f_name = str(mask_output_dir / 'n-{}'.format(key))
             sav_return = np.savetxt(mask_f_name, masks)

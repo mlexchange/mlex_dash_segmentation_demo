@@ -8,6 +8,7 @@ import dash_table
 import helper_utils
 ##### TEMPLATE MODULES
 import templates
+import numpy as np
 
 ### GLOBAL VARIABLES
 SEG_FEATURE_TYPES = ["intensity", "edges", "texture"]
