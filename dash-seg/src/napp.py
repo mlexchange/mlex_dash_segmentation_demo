@@ -311,8 +311,7 @@ class mask_tasks():
 
         # rr, cc = draw.polygon_perimeter(rows, cols) # change to draw.polygon to have filled holes
         mask = np.zeros(shape, dtype=int)
-        # the plus one is because zero is taken as an unlabled pixel, so
-        # all classes need to be shifted up by one for the labelling.
+        # output mask also starts with 0
         for line in lines:
             mask[line[0], line[1]] = class_n 
         # don't want to have filled paths, just draw mask where the stroke is
