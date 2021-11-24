@@ -29,7 +29,7 @@ from app_layout import app, MODEL_DATABASE
 
 
 #### GLOBAL PARAMS ####
-DEFAULT_LABEL_CLASS = 1
+DEFAULT_LABEL_CLASS = 0
 MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
 USER = 'mlexchange-team'
@@ -73,7 +73,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
         label_class_value = max(
             enumerate(any_label_class_button_value),
             key=lambda t: 0 if t[1] is None else t[1],
-        )[0] + 1
+        )[0]
     # plot the new figure
     if len(image_store_data) > 0:
         im_cache = image_store_data[list(image_store_data.keys())[image_slider_value]][1]
@@ -310,8 +310,8 @@ class mask_tasks():
         lines = [draw.line_aa(r0, c0, r1, c1) for r0, c0, r1, c1 in zip(rows[:-1], cols[:-1], rows[1:], cols[1:])]
 
         # rr, cc = draw.polygon_perimeter(rows, cols) # change to draw.polygon to have filled holes
-        mask = np.zeros(shape, dtype=int)
-        # output mask also starts from 1
+        mask = np.zeros(shape, dtype=int) -1
+        # output label starts from 0
         for line in lines:
             mask[line[0], line[1]] = class_n 
         # don't want to have filled paths, just draw mask where the stroke is
@@ -335,7 +335,7 @@ class mask_tasks():
         mask_names = []
         for i, key in enumerate(masks_data):
             shapes = masks_data[key]
-            masks = np.zeros(image_shape_list[i])
+            masks = np.zeros(image_shape_list[i])-1
 
             masks_image = np.ones((*image_shape_list[i], 3), dtype=np.uint8)  ## assume rgb data
 
@@ -344,7 +344,7 @@ class mask_tasks():
                                             image_shape_list[i])
 
                 # update mask to include new shape
-                masks[c_mask > 0] = c_mask[c_mask > 0]
+                masks[c_mask > -1] = c_mask[c_mask > -1]
 
             mask_f_name = str(mask_output_dir / 'n-{}'.format(key))
             sav_return = np.savetxt(mask_f_name, masks)
