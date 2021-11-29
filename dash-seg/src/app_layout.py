@@ -52,15 +52,16 @@ job_status_display = [
                     {'name': 'Type', 'id': 'job_type'},
                     {'name': 'Status', 'id': 'status'},
                     {'name': 'Dataset', 'id': 'dataset'},
+                    {'name': 'Image length', 'id': 'image_length'},
                     {'name': 'Model', 'id': 'model_name'},
                     {'name': 'Parameters', 'id': 'parameters'},
-                    {'name': 'Data directory', 'id': 'data_dir_id'},
+                    {'name': 'Experiment ID', 'id': 'experiment_id'},
                     {'name': 'Logs', 'id': 'job_logs'}
                 ],
                 data = [],
-                hidden_columns = ['job_id', 'data_dir_id', 'job_logs'],
+                hidden_columns = ['job_id', 'image_length', 'experiment_id', 'job_logs'],
                 row_selectable='single',
-                style_cell={'padding': '1rem'}, #, 'maxWidth': '7rem', 'whiteSpace': 'normal'},
+                style_cell={'padding': '1rem', 'textAlign': 'left'}, #, 'maxWidth': '7rem', 'whiteSpace': 'normal'},
                 fixed_rows={'headers': True},
                 css=[{"selector": ".show-hide", "rule": "display: none"}],
                 style_data_conditional=[
@@ -70,7 +71,8 @@ job_status_display = [
                     {'if': {'column_id': 'status', 'filter_query': '{status} = failed'},
                      'backgroundColor': 'red',
                      'color': 'white'}
-                ]
+                ],
+                style_table={'height':'18rem', 'overflowY': 'auto'}
             )
         ]
     )
@@ -121,141 +123,151 @@ segmentation = [
                 ]
             ),
             dbc.CardBody(
-                        dcc.Graph(
-                        id="graph",
-                        figure = helper_utils.make_default_figure(0,np_volume),
-                            config={
-                                "modeBarButtonsToAdd": [
-                                "drawrect",
-                                "drawopenpath",
-                                "eraseshape",
-                                ]
-                            },
-                        ),
-                    ),
+                dcc.Graph(
+                    id="graph",
+                    figure=helper_utils.make_default_figure(0, np_volume),
+                    config={
+                        "modeBarButtonsToAdd": [
+                            "drawrect",
+                            "drawopenpath",
+                            "eraseshape",
+                        ]
+                    },
+                ),
+            ),
             dbc.CardFooter(
                 [
-                    # Download links
-                    html.A(id="download", download="classifier.json",),
                     html.Div(
                         children=[
-                                dbc.Row(
-                                    dbc.Col(
-                                        html.Div(
-                                            children = [dbc.Label(
-                                                            "Image Slider",
-                                                            className="mb-3",
-                                                            html_for='image-slider',
-                                                          ),
-                                                          dcc.Slider(
-                                                            id='image-slider',
-                                                            min=0,
-                                                            max=200,
-                                                            value = 0,
-                                                            updatemode='drag',
-                                                            tooltip={"placement": "top", "always_visible": True},
-                                                            marks={0: '0', 199: '199'},
-                                                          )],
-                                            style={'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'}
-                                        ), 
-                                    md=10),
-                                ),
-                                dbc.Row(
-                                    dbc.ButtonGroup(
-                                        [
-                                            dbc.Button(
-                                                "Download classified image",
-                                                id="download-image-button",
-                                                outline=True,
-                                            ),
-                                            dbc.Button(
-                                                "Download classifier",
-                                                id="download-button",
-                                                outline=True,
-                                            )
-                                        ],
-                                        size="lg",
-                                        style={"width": "100%"},
+                            dbc.Row(
+                                dbc.Col(
+                                    html.Div(
+                                        children=[dbc.Label(
+                                            "Image Slider",
+                                            className="mb-3",
+                                            html_for='image-slider',
+                                        ),
+                                            dcc.Slider(
+                                                id='image-slider',
+                                                min=0,
+                                                max=200,
+                                                value=0,
+                                                updatemode='drag',
+                                                tooltip={"placement": "top", "always_visible": True},
+                                                marks={0: '0', 199: '199'},
+                                            )],
+                                        style={'margin-bottom': '0rem', 'align-items': 'center',
+                                               'justify-content': 'center'}
                                     ),
-                                ),
+                                    md=10),
+                            ),
                         ],
-                    ),
-                    html.A(id="download-image", download="classified-image.png",),
+                    )
                 ]
             ),
         ]
     ),
     error_message,
     dbc.Collapse(
-        id = 'show-plot',
-        children = dbc.Card(
+        id='show-plot',
+        children=dbc.Card(
             id="plot-card",
             children=[
                 dbc.CardHeader("Loss Plot"),
                 dbc.CardBody(
                     [
                         dcc.Graph(id='loss-plot',
-                                  style={'width':'100%', 'height': '20rem'})
+                                  style={'width': '100%', 'height': '20rem'})
                     ]
                 )
             ]
         )
     ),
     dbc.Card(
-        id="logs-card",
         children=[
-            dbc.CardHeader("Job Logs"),
-            dbc.CardBody(
-                [
-                    dcc.Textarea(id='job-logs',
-                                 value='',
-                                 style={'width':'100%', 'height': '10rem'})
-                ]
-            )
-        ])
+            dbc.CardHeader("List of Jobs"),
+            html.Div(id='progress-bar',
+                     style={'margin-top': '0.7rem', 'margin-left': '1rem', 'margin-right': '1rem'}),
+            dbc.CardBody([dbc.Row(dbc.Col(job_status_display)), ])
+        ],
+        style={'height': '26rem'}
+    )
 ]
+
+label_panel = html.Div(
+    [dbc.Card(
+        id="brush-card",
+        style={"width": "100%"},
+        children=[
+            dbc.Collapse(children=[
+                dbc.CardHeader("Annotation Tools"),
+                dbc.CardBody(
+                    [
+                        html.H6("Label class", className="card-title"),
+                        # Label class chosen with buttons
+                        html.Div(
+                            id="label-class-buttons",
+                            children=[
+                                dbc.Button(
+                                    "%2d" % (n,),
+                                    id={"type": "label-class-button", "index": n},
+                                    style={'margin-left': '0.1rem', 'margin-right': '0.1rem',
+                                           "background-color": helper_utils.class_to_color(c)},
+                                )
+                                for n, c in enumerate(class_labels)
+                            ],
+                            className='row',
+                            style={'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'}
+                        ),
+                        html.Div([
+                            dbc.Label(
+                                "Width of annotation paintbrush",
+                                className="mb-3",
+                                html_for="stroke-width"
+                            ),
+                            # Slider for specifying stroke width
+                            dcc.Slider(
+                                id="stroke-width",
+                                min=0,
+                                max=6,
+                                step=0.1,
+                                value=DEFAULT_STROKE_WIDTH,
+                                tooltip={"placement": "top", "always_visible": True},
+                            )
+                        ], style={'align-items': 'center', 'justify-content': 'center', 'margin-bottom': '0rem'}),
+                    ])],
+                id="brush-collapse",
+                is_open=True,
+                style={'margin-bottom': '-2rem'}
+            ),
+            dbc.Collapse(
+                children=[dbc.CardHeader("Instructions"),
+                          dbc.CardBody(
+                              dbc.Label('Please mark the image slice(s) for the selected unsupervised model. \
+                                Otherwise, the whole stack will be used.', className='mr-2'))],
+                id="instructions-collapse",
+                is_open=False,
+                style={'margin-bottom': '-1rem'}
+            ),
+            dbc.Col(dbc.Button('Delete All Annotations',
+                               id='del-mask',
+                               n_clicks=0,
+                               outline=True,
+                               className='m-1',
+                               style={'width': '95%'}),
+                    style={'margin-top': '0rem', 'margin-bottom': '1rem', 'align-items': 'center',
+                           'justify-content': 'center'})
+        ]),
+    ]
+)
 
 # sidebar - labeling tools
 sidebar_label = [
+    label_panel,
     dbc.Card(
         id="sidebar-card",
         style={"width": "100%"},
         children=[
-            dbc.CardHeader("Annotation Tools"),
-            dbc.CardBody(
-                [
-                    html.H6("Label class", className="card-title"),
-                    # Label class chosen with buttons
-                    html.Div(
-                        id="label-class-buttons",
-                        children=[
-                            dbc.Button(
-                                "%2d" % (n,),
-                                id={"type": "label-class-button", "index": n},
-                                style={"background-color": helper_utils.class_to_color(c)},
-                            )
-                            for n, c in enumerate(class_labels)
-                        ],
-                        className='row',
-                        style={'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'}
-                    ),
-                    html.Div([
-                        dbc.Label(
-                            "Width of annotation paintbrush",
-                            className="mb-3",
-                            html_for="stroke-width"
-                        ),
-                        # Slider for specifying stroke width
-                        dcc.Slider(
-                            id="stroke-width",
-                            min=0,
-                            max=6,
-                            step=0.1,
-                            value=DEFAULT_STROKE_WIDTH,
-                            tooltip={"placement": "top", "always_visible": True},
-                        ),
-                    ]),
-            ]),
             dbc.CardHeader("Model"),
             dbc.CardBody(
                 [
@@ -273,9 +285,7 @@ sidebar_label = [
                                 ],
                             ),
                             html.Div(id='model-source'),
-                            html.Div(id='additional-seg-params',
-                                     children=[]
-                                    ),
+                            html.Div(id='additional-seg-params'),
                             dbc.FormGroup(
                                 [
                                     dbc.Label('Choose Deployment Location', className='mr-2'),
@@ -287,6 +297,7 @@ sidebar_label = [
                                                      {'label': 'NERSC', 'value': 'nersc'},
                                                      {'label': 'Lab IT Cluster', 'value': 'labit'},
                                                  ],
+                                                 value='local',
                                                  style={'min-width': '250px'},
                                                  ),
                                 ],
@@ -300,7 +311,7 @@ sidebar_label = [
                                         outline=True,
                                         size="lg",
                                         className='m-1',
-                                        style={'width':'40%'}
+                                        style={'width': '40%'}
                                     ),
                                     dbc.Button(
                                         "TEST",
@@ -308,7 +319,7 @@ sidebar_label = [
                                         outline=True,
                                         size="lg",
                                         className='m-1',
-                                        style={'width':'40%'}
+                                        style={'width': '40%'}
                                     ),
                                 ],
                                 className='row',
@@ -326,35 +337,37 @@ sidebar_label = [
                                 value=[],
                                 style={'margin-top': '1rem', 'margin-bottom': '1rem'}
                             )
-                            ]),
-                    ],
+                        ]),
+                ],
             ),
-            dbc.CardHeader("List of Jobs"),
-            dbc.CardBody([
-                dbc.Row(dbc.Col(job_status_display)),
-            ])
+            dbc.CardHeader("Job Logs"),
+            dbc.CardBody(
+                [
+                    dcc.Textarea(id='job-logs',
+                                 value='',
+                                 style={'width': '100%', 'height': '10rem'})
+                ]
+            )
         ],
     ),
 ]
-
-
 
 # training results
 training_results = [html.Div([
     dcc.Graph(
         id='training-results',
-        ),
+    ),
     dcc.Interval(
         id='update-training-loss',
-        interval=1*2000, # milliseconds
+        interval=1 * 2000,  # milliseconds
         n_intervals=0,
-        ),
-    ],
+    ),
+],
     id='training-visible',
     hidden=True,
-    ),
+),
     html.Div('')
-    ]
+]
 
 # metadata
 meta = [
@@ -373,29 +386,29 @@ meta = [
             dcc.Store(id="features_hash", data=""),
             dcc.Store(id='current-image-num', data=0),
             dcc.Store(id='image-store', data={}),
+            dcc.Store(id='train_counter', data=0),
+            dcc.Store(id='seg_counter', data=0),
+            dcc.Store(id='image-length', data=0),
         ],
-    ),
-    html.Div(id="download-dummy"),
-    html.Div(id="download-image-dummy"),
+    )
 ]
 
-
 ##### DEFINE LAYOUT ####
-app.layout = html.Div (
-        [
-            header,
-            dbc.Container(
-                [
-                    dbc.Row(
-                        [dbc.Col(segmentation, width=8), dbc.Col(sidebar_label, width=4)]
-                    ),
-                    dbc.Row(dbc.Col(html.P(id='debug-print', children=''))),
-                    dbc.Row(dbc.Col(training_results)),
-                    dbc.Row(dbc.Col(meta)),
-                ]
-            )
-        ]
+app.layout = html.Div(
+    [
+        header,
+        dbc.Container(
+            [
+                dbc.Row(
+                    [dbc.Col(segmentation, width=8), dbc.Col(sidebar_label, width=4)]
+                ),
+                dbc.Row(dbc.Col(html.P(id='debug-print', children=''))),
+                dbc.Row(dbc.Col(training_results)),
+                dbc.Row(dbc.Col(meta)),
+            ]
         )
+    ]
+)
 
 
 

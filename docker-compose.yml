@@ -16,10 +16,20 @@ services:
       - ./dash-seg/src:/app/work/src
     ports:
       - "8050:8050"
-      - "8057:8057"
     networks:
       - computing_api_default
       - model-regist_default
+    depends_on:
+      - tiled
+  
+  tiled:
+    build:
+      context: "tiled/"
+      dockerfile: "docker/Dockerfile"
+    volumes:
+      - "/mnt/c/Users/postdoc/Documents/Database/Tomography:/data"
+    ports:
+      - "8057:8057"
 
 volumes: #create named dir and link it to the data folder, so all services can use
   data-m:

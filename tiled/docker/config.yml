@@ -1,0 +1,13 @@
+trees:
+  - path: /
+    tree: tiled.trees.files:Tree.from_directory
+    args:
+      directory: /data
+
+uvicorn:
+  host: 0.0.0.0
+  port: 8057
+
+authentication:
+  allow_anonymous_access: true
+
