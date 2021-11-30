@@ -14,7 +14,6 @@ import pandas as pd
 import PIL.Image
 import plotly.express as px
 import requests
-import time
 import urllib
 
 class_label_colormap = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"]
@@ -95,14 +94,11 @@ def look_up_seg(d, key):
 def make_default_figure(image_index, client, shapes=[], stroke_color='#ff4f00', stroke_width=3, image_cache=None):
     if image_cache is None:
         try:
-            start = time.time()
             im = client.values_indexer[image_index].read()
             # im = client['lrc32_artifacts'][image_index].read()
             # buffer = BytesIO()
             # client.values_indexer[image_index].export(buffer, format="image/png")
-            print(time.time() - start)
             # im = np.asarray(PIL.Image.open(buffer))
-            # print(im.shape)
         except:
             im = client[image_index]
         print(im)

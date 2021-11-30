@@ -37,7 +37,6 @@ IM_OUTPUT_DIR = pathlib.Path('data/images')
 USER = 'mlexchange-team'
 DATA_DIR = str(os.environ['DATA_DIR'])
 TILED_CLIENT = from_uri("http://host.docker.internal:8057", cache=Cache.on_disk('data/cache'))
-#TILED_CLIENT = from_uri("http://host.docker.internal:8057", cache=Cache.in_memory(2e9))
 
 
 def slider_style(n):
