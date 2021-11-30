@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import PIL.Image
 import plotly.express as px
+import plotly.graph_objects as go
 import requests
 import urllib
 
@@ -137,9 +138,12 @@ def generate_figure(log, start):
         end = len(log)
     log = log[start:end]
     df = pd.read_csv(StringIO(log.replace('\n\n','\n')), sep='\t')
-    fig = px.line(df)
-    fig.update_layout(xaxis_title="epoch", yaxis_title="loss", margin=dict(l=20, r=20, t=20, b=20))
-    return fig
+    try:
+        fig = px.line(df)
+        fig.update_layout(xaxis_title="epoch", yaxis_title="loss", margin=dict(l=20, r=20, t=20, b=20))
+        return fig
+    except Exception:
+        return go.Figure(go.Scatter(x=[], y=[]))
 
 
 def get_job(user, mlex_app, job_type=None, deploy_location=None):
