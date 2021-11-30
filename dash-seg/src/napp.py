@@ -105,16 +105,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
 
                 # read in image (too large to store all images in browser cache)
                 try:
-                    if model_name == "Random Forest":
-                        semi = imageio.imread(
-                            'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
-                                                                                       image_slider_value))
-                    elif model_name == "pyMSDtorch":
-                        semi = imageio.imread(
-                            'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
-                                                                                       image_slider_value))
-                    elif model_name == "K-Means":
-                        semi = imageio.imread(
+                    semi = imageio.imread(
                             'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
                                                                                        image_slider_value))
                 except Exception as err:
@@ -259,6 +250,8 @@ def update_model_source(seg_dropdown_value):
         conditions = {'model_name': 'pyMSDtorch'}
     elif seg_dropdown_value == 'K-Means':
         conditions = {'model_name': 'kmeans'}
+    elif seg_dropdown_value == 'TUNet':
+        conditions = {'model_name': 'TUNet'}
 
     if bool(conditions):
         model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
@@ -613,6 +606,16 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
                    'image_length': image_length
                    }
 
+    elif seg_dropdown_value == "TUNet":
+        docker_cmd = "python src/train.py"
+        kw_args = {'model_name': seg_dropdown_value,
+                   'directories': [mask_dir_docker, images_dir_docker, model_dir_docker],
+                   'parameters':  input_params,
+                   'experiment_id': experiment_id,
+                   'dataset': dataset,
+                   'image_length': image_length
+                   }
+
     train_job = job_dispatcher.SimpleJob(user=USER,
                                          job_type="training " + str(count),
                                          description= " ",
@@ -754,6 +757,18 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_da
                    'training_model': model_description
                    }
 
+    elif model_name == "TUNet":
+        model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
+        docker_cmd = "python src/segment.py"
+        kw_args = {'model_name':  model_name,
+                   'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
+                   'parameters': meta_params,
+                   'experiment_id': experiment_id,
+                   'dataset': dataset,
+                   'image_length': image_length,
+                   'training_model': model_description
+                   }
+
     seg_job = job_dispatcher.SimpleJob(
                     user=USER,
                     job_type="deploy " + str(count),
@@ -787,6 +802,8 @@ def additional_seg_features(seg_dropdown_value):
         conditions = {'model_name': 'pyMSDtorch'}
     elif seg_dropdown_value == 'K-Means':
         conditions = {'model_name': 'kmeans'}
+    elif seg_dropdown_value == 'TUNet':
+        conditions = {'model_name': 'TUNet'}
 
     model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
     gui_item = JSONParameterEditor(_id={'type': 'parameter_editor'},  # pattern match _id (base id), name

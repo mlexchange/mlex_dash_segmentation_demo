@@ -20,6 +20,7 @@ DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
                   "pyMSDtorch": "mlexchange/msdnetwork-notebook",
                   "K-Means": "mlexchange/k-means-dc",
+                  "TUNet": "mlexchange/tunets"
                 }
 
 
@@ -343,7 +344,7 @@ sidebar_label = [
                 [
                     dcc.Textarea(id='job-logs',
                                  value='',
-                                 style={'width': '100%', 'height': '10rem'})
+                                 style={'width': '100%', 'height': '10rem', 'fontSize': '10px'})
                 ]
             )
         ],
