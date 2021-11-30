@@ -143,7 +143,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                 )
                 im.update_layout(template='plotly_white')
                
-                return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max]
+                return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max+1]
 
     # dataset selection
     np_volume = helper_utils.dcm_to_np(dataset)
@@ -155,7 +155,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                                           stroke_width=stroke_width,
                                               image_cache=im_cache)
     
-    return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max]
+    return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max+1]
 
 
 
@@ -205,12 +205,21 @@ def show_message(dataset, show_segmentation_value, row, n_clicks1, n_clicks2, jo
     is_open = False
     msg1 = "Please select a deploy (segment) from the List of Jobs!"
     msg2 = "Please select a training from the List of Jobs!"
+    msg3 = "Please unselect show segmentation (button) before switching to a different dataset!"
 
     if bool(show_segmentation_value):
         msg_color, msg, is_open = return_msg(job_data, row, 'deploy', 'red', msg1)
 
     if 'compute-seg' in changed_id:
         msg_color, msg, is_open = return_msg(job_data, row, 'training', 'red', msg2)
+        
+    if 'dataset-selection' in changed_id:
+        if row is not None and bool(show_segmentation_value):
+            job_type = job_data[row[0]]["job_type"].split()
+            if ' '.join(job_type[0:-1]) == 'deploy':
+                is_open = True
+                msg_color = msg_style('red')
+                msg = msg3 
     
     if 'close-error' in changed_id:
         is_open = False
@@ -419,7 +428,7 @@ def update_table(n, row):
             if ' '.join(job_type[0:-1]) == 'deploy':
                 values = (int(log.split("classified\t")[-1])+1)/data_table[row[0]]["image_length"]*100
                 labels = 'Deploy progress: ' + str(round(values)) + '%'
-                if values <= 100 or data_table[row[0]]['status'] == 'running':
+                if values < 100 or data_table[row[0]]['status'] == 'running':
                     progress = [dbc.Label(labels), dbc.Progress(value=values)]
                 
             start = log.find('loss')
@@ -546,31 +555,9 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
 
     if seg_dropdown_value == 'Random Forest':
         print('now doing random forest...')
-        kw_args = {'model_name':  seg_dropdown_value,
-                   'directories': [images_dir_docker, feature_dir_docker],
-                   'parameters':  {},
-                   'experiment_id': experiment_id,
-                   'dataset': dataset,
-                   'image_length': image_length
-                   }
-        feat_job = job_dispatcher.SimpleJob(
-                    user=USER,
-                    job_type="feature generation " + str(count),
-                    description="Random Forest",
-                    deploy_location="local",
-                    gpu=False,
-                    data_uri=DATA_DIR,
-                    container_uri=MODEL_DATABASE[seg_dropdown_value],
-                    container_cmd='python feature_generation.py',
-                    container_kwargs=kw_args,
-                    )
-
-        feat_job.launch_job()
-        print('launched feature extraction on ml server')
-
         docker_cmd = "python random_forest.py"
         kw_args = {'model_name':  seg_dropdown_value,
-                   'directories': [mask_dir_docker, feature_dir_docker, model_dir_docker],
+                   'directories': [images_dir_docker, feature_dir_docker, mask_dir_docker, model_dir_docker],
                    'parameters': input_params,
                    'experiment_id': experiment_id,
                    'dataset': dataset,

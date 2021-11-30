@@ -23,6 +23,8 @@ RGB_colormap = [(230,159,0), (143,0,255), (86,180,233), (0,158,115), (240,228,66
 def dcm_to_np(dir_path):
     np_volume = imageio.volread(dir_path)
     # np_volume = imageio.volread("imageio:stent.npz")
+    if len(list(np_volume.shape)) == 2:
+        np_volume = np_volume.reshape(1,np_volume.shape[0],np_volume.shape[1])
     return np_volume
 
 
@@ -94,6 +96,7 @@ def look_up_seg(d, key):
 def make_default_figure(image_index, np_volume, shapes=[], stroke_color=class_label_colormap[-1], stroke_width=3, image_cache=None):
     if image_cache is None:
         im = np_volume[image_index]
+        print(f' image shape {im.shape}')
         width, height = im.shape[0:2]
         print('default figure')
     else:
