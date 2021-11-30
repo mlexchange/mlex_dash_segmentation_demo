@@ -152,7 +152,7 @@ segmentation = [
                                                 min=0,
                                                 max=200,
                                                 value=0,
-                                                updatemode='drag',
+                                                updatemode='mouseup',
                                                 tooltip={"placement": "top", "always_visible": True},
                                                 marks={0: '0', 199: '199'},
                                             )],
