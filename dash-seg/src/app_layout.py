@@ -114,8 +114,7 @@ segmentation = [
                             {'label': 'Bead Simulated', 'value': 'data/bead_pack_artifacts.tif'},
                             {'label': 'Castle Simulated', 'value': 'data/castle_artifacts.tif'},
                             {'label': 'Gambier Simulated', 'value': 'data/Gambier_artifacts.tif'},
-                            {'label': 'LRC32 Simulated', 'value': 'data/lrc32_artifacts.tif'},
-                            {'label': 'Tiled', 'value': 'tiled'}
+                            {'label': 'LRC32 Simulated (Tiled)', 'value': 'tiled'}
                         ],
                         value = 'data/bead_pack.tif',
                         clearable=False,
