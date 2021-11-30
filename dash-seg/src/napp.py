@@ -36,7 +36,8 @@ MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
 USER = 'mlexchange-team'
 DATA_DIR = str(os.environ['DATA_DIR'])
-TILED_CLIENT = from_uri("http://host.docker.internal:8057", cache=Cache.in_memory(2e9))
+TILED_CLIENT = from_uri("http://host.docker.internal:8057", cache=Cache.on_disk('data/cache'))
+#TILED_CLIENT = from_uri("http://host.docker.internal:8057", cache=Cache.in_memory(2e9))
 
 
 def slider_style(n):
@@ -175,7 +176,7 @@ def msg_style(color='black'):
     return {'width': '100%', 'height': '3rem', 'color': color}
 
 
-def return_msg(job_data, row, jobType, color, message):
+def return_msg(job_data, row, jobType, color, message, dataset=None):
     msg = ''
     msg_color = msg_style()
     is_open = False
@@ -190,6 +191,12 @@ def return_msg(job_data, row, jobType, color, message):
             is_open = True
             msg_color = msg_style(color)
             msg = message
+        elif dataset == 'tiled':
+                msg_color = msg_style(color)
+                is_open = True
+                msg = 'The data transfer has been initiated. ' \
+                      'The job will appear in the table once the transfer has been completed. ' \
+                      'This action may take a couple minutes.'
 
     return msg_color, msg, is_open
 
@@ -205,7 +212,7 @@ def return_msg(job_data, row, jobType, color, message):
         Input('show-segmentation', 'value'),
         Input('jobs_table', 'selected_rows'),
         Input("close-error", "n_clicks"),
-        Input("compute-seg", "n_clicks")
+        Input("compute-seg", "n_clicks"),
     ],
     [
         State('jobs_table', 'data')
@@ -223,7 +230,7 @@ def show_message(dataset, show_segmentation_value, row, n_clicks1, n_clicks2, jo
         msg_color, msg, is_open = return_msg(job_data, row, 'deploy', 'red', msg1)
 
     if 'compute-seg' in changed_id:
-        msg_color, msg, is_open = return_msg(job_data, row, 'training', 'red', msg2)
+        msg_color, msg, is_open = return_msg(job_data, row, 'training', 'red', msg2, dataset)
 
     if 'close-error' in changed_id:
         is_open = False
