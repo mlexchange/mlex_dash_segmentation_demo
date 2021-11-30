@@ -8,6 +8,7 @@ import dash_table
 import helper_utils
 ##### TEMPLATE MODULES
 import templates
+import numpy as np
 
 ### GLOBAL VARIABLES
 SEG_FEATURE_TYPES = ["intensity", "edges", "texture"]
@@ -139,28 +140,27 @@ segmentation = [
                 [
                     html.Div(
                         children=[
-                            dbc.Row(
-                                dbc.Col(
-                                    html.Div(
-                                        children=[dbc.Label(
-                                            "Image Slider",
-                                            className="mb-3",
-                                            html_for='image-slider',
-                                        ),
-                                            dcc.Slider(
-                                                id='image-slider',
-                                                min=0,
-                                                max=200,
-                                                value=0,
-                                                updatemode='mouseup',
-                                                tooltip={"placement": "top", "always_visible": True},
-                                                marks={0: '0', 199: '199'},
-                                            )],
-                                        style={'margin-bottom': '0rem', 'align-items': 'center',
-                                               'justify-content': 'center'}
-                                    ),
+                                dbc.Row(
+                                    dbc.Col(
+                                        html.Div(
+                                            children = [dbc.Label(
+                                                            "Image Slider",
+                                                            className="mb-3",
+                                                            html_for='image-slider',
+                                                          ),
+                                                          dcc.Slider(
+                                                            id='image-slider',
+                                                            min=0,
+                                                            max=200,
+                                                            value = 0,
+                                                            updatemode='mouseup',
+                                                            tooltip={"placement": "top", "always_visible": True},
+                                                            marks={0: '0', 199: '199'},
+                                                          )],
+                                            style={'margin-bottom': '0rem', 'align-items': 'center', 'justify-content': 'center'}
+                                        ), 
                                     md=10),
-                            ),
+                                ),
                         ],
                     )
                 ]
@@ -184,15 +184,16 @@ segmentation = [
         )
     ),
     dbc.Card(
-        children=[
+        children = [
             dbc.CardHeader("List of Jobs"),
             html.Div(id='progress-bar',
                      style={'margin-top': '0.7rem', 'margin-left': '1rem', 'margin-right': '1rem'}),
-            dbc.CardBody([dbc.Row(dbc.Col(job_status_display)), ])
+            dbc.CardBody([dbc.Row(dbc.Col(job_status_display)),])
         ],
-        style={'height': '26rem'}
+        style={'height':'26rem'}
     )
 ]
+
 
 label_panel = html.Div(
     [dbc.Card(
@@ -211,8 +212,7 @@ label_panel = html.Div(
                                 dbc.Button(
                                     "%2d" % (n,),
                                     id={"type": "label-class-button", "index": n},
-                                    style={'margin-left': '0.1rem', 'margin-right': '0.1rem',
-                                           "background-color": helper_utils.class_to_color(c)},
+                                    style={'margin-left': '0.1rem', 'margin-right': '0.1rem', "background-color": helper_utils.class_to_color(c)},
                                 )
                                 for n, c in enumerate(class_labels)
                             ],
@@ -238,25 +238,24 @@ label_panel = html.Div(
                     ])],
                 id="brush-collapse",
                 is_open=True,
-                style={'margin-bottom': '-2rem'}
+                style = {'margin-bottom': '-2rem'}
             ),
             dbc.Collapse(
-                children=[dbc.CardHeader("Instructions"),
-                          dbc.CardBody(
-                              dbc.Label('Please mark the image slice(s) for the selected unsupervised model. \
-                                Otherwise, the whole stack will be used.', className='mr-2'))],
+                children = [dbc.CardHeader("Instructions"),
+                dbc.CardBody(
+                    dbc.Label('Please mark the image slice(s) for the selected unsupervised model. \
+                    Otherwise, the whole stack will be used.', className='mr-2'))],
                 id="instructions-collapse",
                 is_open=False,
-                style={'margin-bottom': '-1rem'}
+                style = {'margin-bottom': '-1rem'}
             ),
             dbc.Col(dbc.Button('Delete All Annotations',
-                               id='del-mask',
-                               n_clicks=0,
-                               outline=True,
-                               className='m-1',
-                               style={'width': '95%'}),
-                    style={'margin-top': '0rem', 'margin-bottom': '1rem', 'align-items': 'center',
-                           'justify-content': 'center'})
+                       id='del-mask',
+                       n_clicks=0,
+                       outline=True,
+                       className='m-1',
+                       style={'width': '95%'}),
+                    style = {'margin-top': '0rem', 'margin-bottom': '1rem', 'align-items': 'center', 'justify-content': 'center'})
         ]),
     ]
 )

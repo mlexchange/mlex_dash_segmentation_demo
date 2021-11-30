@@ -85,70 +85,68 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
     if "Show segmentation" in show_segmentation_value:
         # get selected job id from job list
         if row is not None:
-            if row is not None:
-                job_type = job_data[row[0]]["job_type"].split()
-                if ' '.join(job_type[0:-1]) == 'deploy':
-                    model_name = job_data[row[0]]["model_name"]
-                    experiment_id = job_data[row[0]]["experiment_id"]
-                    job_id = experiment_id
+            job_type = job_data[row[0]]["job_type"].split()
+            if ' '.join(job_type[0:-1]) == 'deploy':
+                model_name  = job_data[row[0]]["model_name"]
+                experiment_id = job_data[row[0]]["experiment_id"]
+                job_id      = experiment_id
 
-                    # needs to be run in a callback or we don't have access to 'app'
-                    USER_NAME = request.authorization['username']
-                    # dataset selection - based on selected job
-                    np_volume = helper_utils.dcm_to_np(
-                        'data/mlexchange_store/{}/{}/images/segment_series.tif'.format(USER_NAME, job_id))
-                    image_slider_max = len(np_volume) - 1
-                    if image_slider_value > image_slider_max:
-                        image_slider_value = 0
-                    im = helper_utils.make_default_figure(image_slider_value, np_volume, shapes,
-                                                          stroke_color=helper_utils.class_to_color(label_class_value),
-                                                          stroke_width=stroke_width,
-                                                          image_cache=im_cache)
+                # needs to be run in a callback or we don't have access to 'app'
+                USER_NAME = request.authorization['username']
+                # dataset selection - based on selected job
+                np_volume = helper_utils.dcm_to_np('data/mlexchange_store/{}/{}/images/segment_series.tif'.format(USER_NAME, job_id))
+                image_slider_max = len(np_volume) - 1
+                if image_slider_value > image_slider_max:
+                    image_slider_value = 0
+                im = helper_utils.make_default_figure(image_slider_value, np_volume, shapes,
+                                                      stroke_color=helper_utils.class_to_color(label_class_value),
+                                                      stroke_width=stroke_width,
+                                                      image_cache=im_cache)
 
-                    # read in image (too large to store all images in browser cache)
-                    try:
-                        if model_name == "Random Forest":
-                            semi = imageio.imread(
-                                'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
-                                                                                           image_slider_value))
-                        elif model_name == "pyMSDtorch":
-                            semi = imageio.imread(
-                                'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
-                                                                                           image_slider_value))
-                        elif model_name == "K-Means":
-                            semi = imageio.imread(
-                                'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
-                                                                                           image_slider_value))
-                    except Exception as err:
-                        print(err)
-                    semi = helper_utils.label_to_colors(semi)
+                # read in image (too large to store all images in browser cache)
+                try:
+                    if model_name == "Random Forest":
+                        semi = imageio.imread(
+                            'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
+                                                                                       image_slider_value))
+                    elif model_name == "pyMSDtorch":
+                        semi = imageio.imread(
+                            'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
+                                                                                       image_slider_value))
+                    elif model_name == "K-Means":
+                        semi = imageio.imread(
+                            'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
+                                                                                       image_slider_value))
+                except Exception as err:
+                    print(err)
+                semi = helper_utils.label_to_colors(semi)
 
-                    def img_array_to_pil_image(ia):
-                        ia = skimage.util.img_as_ubyte(ia)
-                        img = PIL.Image.fromarray(ia)
-                        return img
+                def img_array_to_pil_image(ia):
+                    ia = skimage.util.img_as_ubyte(ia)
+                    img = PIL.Image.fromarray(ia)
+                    return img
 
-                    semipng = img_array_to_pil_image(semi)
-                    semipng.save('data/printcolor.png')
+                semipng = img_array_to_pil_image(semi)
+                semipng.save('data/printcolor.png')
 
-                    width, height = (semi.shape[0], semi.shape[1])
-                    im.add_layout_image(
-                        dict(
-                            source=semipng,
-                            xref="x",
-                            yref="y",
-                            x=0,
-                            y=0,
-                            sizex=width,
-                            sizey=height,
-                            sizing="contain",
-                            opacity=0.5,
-                            layer="above",
-                        )
+                width, height = (semi.shape[0], semi.shape[1])
+                im.add_layout_image(
+                    dict(
+                        source=semipng,
+                        xref="x",
+                        yref="y",
+                        x=0,
+                        y=0,
+                        sizex=width,
+                        sizey=height,
+                        sizing="contain",
+                        opacity=0.5,
+                        layer="above",
                     )
-                    im.update_layout(template='plotly_white')
+                )
+                im.update_layout(template='plotly_white')
 
-                    return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max]
+                return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max+1]
 
     # dataset selection
     if dataset == 'tiled':
@@ -167,8 +165,8 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                                               stroke_color=helper_utils.class_to_color(label_class_value),
                                               stroke_width=stroke_width,
                                               image_cache=im_cache)
-    
-    return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max]
+
+    return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max+1]
 
 
 def msg_style(color='black'):
@@ -200,6 +198,25 @@ def return_msg(job_data, row, jobType, color, message, dataset=None):
     return msg_color, msg, is_open
 
 
+def return_msg(job_data, row, jobType, color, message):
+    msg =''
+    msg_color = msg_style()
+    is_open = False
+    
+    if row is None:
+        msg_color = msg_style(color)
+        is_open = True
+        msg = message
+    else:
+        job_type = job_data[row[0]]["job_type"].split()
+        if ' '.join(job_type[0:-1]) != jobType:
+            is_open = True
+            msg_color = msg_style(color)
+            msg = message
+    
+    return msg_color, msg, is_open
+
+
 @app.callback(
     [
         Output('error-body', 'children'),
@@ -211,7 +228,7 @@ def return_msg(job_data, row, jobType, color, message, dataset=None):
         Input('show-segmentation', 'value'),
         Input('jobs_table', 'selected_rows'),
         Input("close-error", "n_clicks"),
-        Input("compute-seg", "n_clicks"),
+        Input("compute-seg", "n_clicks")
     ],
     [
         State('jobs_table', 'data')
@@ -219,17 +236,26 @@ def return_msg(job_data, row, jobType, color, message, dataset=None):
 )
 def show_message(dataset, show_segmentation_value, row, n_clicks1, n_clicks2, job_data):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    msg = ''
+    msg =''
     msg_color = msg_style()
     is_open = False
     msg1 = "Please select a deploy (segment) from the List of Jobs!"
     msg2 = "Please select a training from the List of Jobs!"
+    msg3 = "Please unselect show segmentation (button) before switching to a different dataset!"
 
     if bool(show_segmentation_value):
         msg_color, msg, is_open = return_msg(job_data, row, 'deploy', 'red', msg1)
 
     if 'compute-seg' in changed_id:
         msg_color, msg, is_open = return_msg(job_data, row, 'training', 'red', msg2, dataset)
+
+    if 'dataset-selection' in changed_id:
+        if row is not None and bool(show_segmentation_value):
+            job_type = job_data[row[0]]["job_type"].split()
+            if ' '.join(job_type[0:-1]) == 'deploy':
+                is_open = True
+                msg_color = msg_style('red')
+                msg = msg3 
 
     if 'close-error' in changed_id:
         is_open = False
@@ -329,11 +355,10 @@ class mask_tasks():
         lines = [draw.line_aa(r0, c0, r1, c1) for r0, c0, r1, c1 in zip(rows[:-1], cols[:-1], rows[1:], cols[1:])]
 
         # rr, cc = draw.polygon_perimeter(rows, cols) # change to draw.polygon to have filled holes
-        mask = np.zeros(shape, dtype=int)
-        # the plus one is because zero is taken as an unlabled pixel, so
-        # all classes need to be shifted up by one for the labelling.
+        mask = np.zeros(shape, dtype=int) -1
+        # output label starts from 0
         for line in lines:
-            mask[line[0], line[1]] = class_n + 1
+            mask[line[0], line[1]] = class_n
         # don't want to have filled paths, just draw mask where the stroke is
         # so commented out below
         #        mask = ndimage.binary_fill_holes(mask)
@@ -355,7 +380,7 @@ class mask_tasks():
         mask_names = []
         for i, key in enumerate(masks_data):
             shapes = masks_data[key]
-            masks = np.zeros(image_shape_list[i])
+            masks = np.zeros(image_shape_list[i])-1
 
             masks_image = np.ones((*image_shape_list[i], 3), dtype=np.uint8)  ## assume rgb data
 
@@ -364,7 +389,7 @@ class mask_tasks():
                                             image_shape_list[i])
 
                 # update mask to include new shape
-                masks[c_mask > 0] = c_mask[c_mask > 0]
+                masks[c_mask > -1] = c_mask[c_mask > -1]
 
             mask_f_name = str(mask_output_dir / 'n-{}'.format(key))
             sav_return = np.savetxt(mask_f_name, masks)
@@ -422,7 +447,7 @@ def update_table(n, row):
                                   job_type=job['job_type'],
                                   status=job['status'],
                                   dataset=job['container_kwargs']['dataset'],
-                                  image_length=job['container_kwargs']['image_length'],
+                                  image_length = job['container_kwargs']['image_length'],
                                   model_name=job['container_kwargs']['model_name'],
                                   parameters=param,
                                   experiment_id=job['container_kwargs']['experiment_id'],
@@ -436,14 +461,14 @@ def update_table(n, row):
         log = data_table[row[0]]["job_logs"]
         if log:
             if ' '.join(job_type[0:-1]) == 'deploy':
-                values = (int(log.split("classified\t")[-1]) + 1) / data_table[row[0]]["image_length"] * 100
+                values = (int(log.split("classified\t")[-1])+1)/data_table[row[0]]["image_length"]*100
                 labels = 'Deploy progress: ' + str(round(values)) + '%'
-                if values <= 100 or data_table[row[0]]['status'] == 'running':
+                if values < 100 or data_table[row[0]]['status'] == 'running':
                     progress = [dbc.Label(labels), dbc.Progress(value=values)]
-
+                
             start = log.find('loss')
-            if start > -1 and len(log) > start - 5:
-                fig = helper_utils.generate_figure(log, start)
+            if start > -1 and len(log) > start-5:
+                fig = helper_utils.generate_figure(log,start)
                 return data_table, True, fig, log, progress
     return data_table, False, go.Figure(go.Scatter(x=[], y=[])), log, progress
 
@@ -520,23 +545,23 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
 
     #### save images who have a hand drawn mask
     #### save the shape of those saved images for converting mask from path to array
-    masks_data = {k: v for (k, v) in masks_data.items() if bool(v)}
-    image_index_with_mask = list(masks_data.keys())  # slice index that is labeled
+    masks_data = {k:v for (k,v) in masks_data.items() if bool(v)}
+    image_index_with_mask = list(masks_data.keys()) #slice index that is labeled
     if seg_dropdown_value == 'K-Means':
-        if bool(image_index_with_mask):
-            for im_index in image_index_with_mask:
-                if dataset == 'tiled':
-                    im = TILED_CLIENT.values_indexer[int(im_index)].read()
-                else:
-                    im = np_volume[int(im_index)]
-                imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(im_index), im)
-        else:
-            for index in range(len(np_volume)):
-                if dataset == 'tiled':
-                    im = TILED_CLIENT.values_indexer[int(index)].read()
-                else:
-                    im = np_volume[int(index)]
-                imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(index), im)
+         if bool(image_index_with_mask):
+             for im_index in image_index_with_mask:
+                 if dataset == 'tiled':
+                     im = TILED_CLIENT.values_indexer[int(im_index)].read()
+                 else:
+                     im = np_volume[int(im_index)]
+                 imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(im_index), im)
+         else:
+             for index in range(len(np_volume)):
+                 if dataset == 'tiled':
+                     im = TILED_CLIENT.values_indexer[int(index)].read()
+                 else:
+                     im = np_volume[int(index)]
+                 imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(index), im)
 
     else:
         im_shape_list = []
@@ -577,31 +602,10 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
 
     if seg_dropdown_value == 'Random Forest':
         print('now doing random forest...')
-        kw_args = {'model_name': seg_dropdown_value,
-                   'directories': [images_dir_docker, feature_dir_docker],
-                   'parameters': {},
-                   'experiment_id': experiment_id,
-                   'dataset': dataset,
-                   'image_length': image_length
-                   }
-        feat_job = job_dispatcher.SimpleJob(
-            user=USER,
-            job_type="feature generation " + str(count),
-            description="Random Forest",
-            deploy_location="local",
-            gpu=False,
-            data_uri=DATA_DIR,
-            container_uri=MODEL_DATABASE[seg_dropdown_value],
-            container_cmd='python feature_generation.py',
-            container_kwargs=kw_args,
-        )
-
-        feat_job.launch_job()
-        print('launched feature extraction on ml server')
 
         docker_cmd = "python random_forest.py"
-        kw_args = {'model_name': seg_dropdown_value,
-                   'directories': [mask_dir_docker, feature_dir_docker, model_dir_docker],
+        kw_args = {'model_name':  seg_dropdown_value,
+                   'directories': [images_dir_docker, feature_dir_docker, mask_dir_docker, model_dir_docker],
                    'parameters': input_params,
                    'experiment_id': experiment_id,
                    'dataset': dataset,
@@ -612,7 +616,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
         docker_cmd = "python src/train.py"
         kw_args = {'model_name': seg_dropdown_value,
                    'directories': [mask_dir_docker, images_dir_docker, model_dir_docker],
-                   'parameters': input_params,
+                   'parameters':  input_params,
                    'experiment_id': experiment_id,
                    'dataset': dataset,
                    'image_length': image_length
@@ -620,9 +624,9 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
 
     elif seg_dropdown_value == "K-Means":
         docker_cmd = "python kmeans.py"
-        kw_args = {'model_name': seg_dropdown_value,
+        kw_args = {'model_name':  seg_dropdown_value,
                    'directories': [images_dir_docker, model_dir_docker],
-                   'parameters': input_params,
+                   'parameters':  input_params,
                    'experiment_id': experiment_id,
                    'dataset': dataset,
                    'image_length': image_length
@@ -630,7 +634,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
 
     train_job = job_dispatcher.SimpleJob(user=USER,
                                          job_type="training " + str(count),
-                                         description=" ",
+                                         description= " ",
                                          deploy_location="local",
                                          gpu=False,
                                          data_uri=str(DATA_DIR),
@@ -679,15 +683,16 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_da
 
     if compute_seg_n_clicks is None or not bool(row):
         raise PreventUpdate
-
+    
     job_type = job_data[row[0]]["job_type"].split()
     if ' '.join(job_type[0:-1]) != 'training':
-        raise PreventUpdate
+         raise PreventUpdate
 
     # initializes the counter according to the latest deploy job in the database
     if count == 0:
         count = helper_utils.init_counters(USER, 'deploy')
 
+    # create user directory to store users data/experiments
     # dataset selection
     if dataset == 'tiled':
         np_volume = []
@@ -698,7 +703,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_da
         np_volume = helper_utils.dcm_to_np(dataset)
     # find most recent job id (current experiment)
     training_experiment_id = job_data[row[0]]["experiment_id"]
-    experiment_id = str(uuid.uuid4())  # create unique experiment id
+    experiment_id = str(uuid.uuid4())    # create unique experiment id
     model_name = job_data[row[0]]["model_name"]
     model_description = job_data[row[0]]["job_type"]
     USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
@@ -735,7 +740,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_da
     if model_name == "Random Forest":
         model_input_dir_dock = MODEL_INPUT_DIR / 'random-forest.model'
         docker_cmd = "python segment.py"
-        kw_args = {'model_name': model_name,
+        kw_args = {'model_name':  model_name,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
                    'experiment_id': experiment_id,
@@ -747,7 +752,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_da
     elif model_name == "pyMSDtorch":
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
         docker_cmd = "python src/segment.py"
-        kw_args = {'model_name': model_name,
+        kw_args = {'model_name':  model_name,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
                    'experiment_id': experiment_id,
@@ -759,7 +764,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_da
     elif model_name == "K-Means":
         model_input_dir_dock = MODEL_INPUT_DIR / 'kmeans.joblib'
         docker_cmd = "python segment.py"
-        kw_args = {'model_name': model_name,
+        kw_args = {'model_name':  model_name,
                    'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
                    'parameters': meta_params,
                    'experiment_id': experiment_id,
@@ -769,16 +774,16 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_da
                    }
 
     seg_job = job_dispatcher.SimpleJob(
-        user=USER,
-        job_type="deploy " + str(count),
-        description=" ",
-        deploy_location="local",
-        gpu=False,
-        data_uri=str(DATA_DIR),
-        container_uri=MODEL_DATABASE[model_name],
-        container_cmd=docker_cmd,
-        container_kwargs=kw_args,
-    )
+                    user=USER,
+                    job_type="deploy " + str(count),
+                    description= " ",
+                    deploy_location="local",
+                    gpu=False,
+                    data_uri=str(DATA_DIR),
+                    container_uri=MODEL_DATABASE[model_name],
+                    container_cmd=docker_cmd,
+                    container_kwargs=kw_args,
+                    )
 
     seg_job.launch_job()
     count += 1
@@ -787,10 +792,10 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_da
 
 
 @app.callback(
-    [Output('additional-seg-params', 'children'),
-     Output('brush-collapse', 'is_open'),
-     Output('instructions-collapse', 'is_open')
-     ],
+    [   Output('additional-seg-params', 'children'),
+        Output('brush-collapse', 'is_open'),
+        Output('instructions-collapse', 'is_open')
+    ],
     Input('seg-dropdown', 'value')
 )
 def additional_seg_features(seg_dropdown_value):
@@ -807,11 +812,9 @@ def additional_seg_features(seg_dropdown_value):
                                    json_blob=model[0]["gui_parameters"],
                                    )
     gui_item.init_callbacks(app)
-
     is_open = True
     if model[0]["type"] == "unsupervised":
         is_open = not is_open
-
     return [gui_item, is_open, not is_open]
 
 
