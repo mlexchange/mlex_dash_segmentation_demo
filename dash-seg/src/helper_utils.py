@@ -96,7 +96,6 @@ def look_up_seg(d, key):
 def make_default_figure(image_index, np_volume, shapes=[], stroke_color=class_label_colormap[-1], stroke_width=3, image_cache=None):
     if image_cache is None:
         im = np_volume[image_index]
-        print(f' image shape {im.shape}')
         width, height = im.shape[0:2]
         print('default figure')
     else:
