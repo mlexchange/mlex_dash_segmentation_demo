@@ -27,7 +27,7 @@ services:
       context: "tiled/"
       dockerfile: "docker/Dockerfile"
     volumes:
-      - "/Users/tanchavez/Documents/Dataset/test_dataset:/data"
+      - "/Users/tanchavez/Documents/Dataset/test:/data"
       #- "/Users/tanchavez/Documents/Dataset/Tomography/rec20211001_092045_toothpick:/data"
     ports:
       - "8057:8057"

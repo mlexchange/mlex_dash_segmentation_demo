@@ -198,25 +198,6 @@ def return_msg(job_data, row, jobType, color, message, dataset=None):
     return msg_color, msg, is_open
 
 
-def return_msg(job_data, row, jobType, color, message):
-    msg =''
-    msg_color = msg_style()
-    is_open = False
-    
-    if row is None:
-        msg_color = msg_style(color)
-        is_open = True
-        msg = message
-    else:
-        job_type = job_data[row[0]]["job_type"].split()
-        if ' '.join(job_type[0:-1]) != jobType:
-            is_open = True
-            msg_color = msg_style(color)
-            msg = message
-    
-    return msg_color, msg, is_open
-
-
 @app.callback(
     [
         Output('error-body', 'children'),
