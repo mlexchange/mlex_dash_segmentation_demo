@@ -1,10 +1,10 @@
 # LIBRARIES
-import base64
-import io
-import json
 import os
+import io
 import pathlib
 import re
+import json
+import base64
 
 import dash
 import dash_bootstrap_components as dbc
