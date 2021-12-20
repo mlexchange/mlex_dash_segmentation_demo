@@ -27,8 +27,9 @@ services:
       context: "tiled/"
       dockerfile: "docker/Dockerfile"
     volumes:
-      - "/Users/tanchavez/Documents/Dataset/test:/data"
-      #- "/Users/tanchavez/Documents/Dataset/Tomography/rec20211001_092045_toothpick:/data"
+      # if using a different data path, modify the next line as
+      # - "path/to/data:/data"
+      - "${PWD}/dash-seg/data/tiled:/data"
     ports:
       - "8057:8057"
 
