@@ -24,7 +24,7 @@ def header():
                             html.Img(
                                 id="logo",
                                 src='assets/mlex.png',
-                                height="40px",
+                                height="60px",
                             ),
                             md="auto",
                         ),
@@ -32,8 +32,8 @@ def header():
                             [
                                 html.Div(
                                     [
-                                        html.H3("MLExchange | Labelling"),
-                                        html.P("Image segmentation"),
+                                        html.H3("MLExchange | Image segmentation"),
+                                        #html.P("Image segmentation"),
                                     ],
                                     id="app-title",
                                 )
@@ -53,7 +53,7 @@ def header():
                                     dbc.Nav(
                                         [
                                             #dbc.NavItem(button_howto),
-                                            dbc.NavItem(button_github),
+                                            #dbc.NavItem(button_github),
                                         ],
                                         navbar=True,
                                     ),

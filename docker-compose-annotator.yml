@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  front-end:
+    restart: "unless-stopped"
+    container_name: "fronty"
+    user: "${UID}:${GID}"
+    build:
+      context: "dash-seg/"
+      dockerfile: "docker/Dockerfile"
+    command: "python src/annotator.py"
+    environment:
+      DATA_DIR: "${PWD}/dash-seg/data/" #"${COMPOSE_PROJECT_NAME}_data-m"
+    volumes:
+      - ./dash-seg/data:/app/work/data
+      - ./dash-seg/src:/app/work/src
+    ports:
+      - "8050:8050"
+      - "8057:8057"
+
+volumes: #create named dir and link it to the data folder, so all services can use
+  data-m:
+    driver: local
+    driver_opts:
+      type: "none"
+      device: "${PWD}/dash-seg/data/"
+      o: "bind"

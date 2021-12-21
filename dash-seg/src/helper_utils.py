@@ -1,4 +1,5 @@
 import io
+from io import BytesIO
 import json
 import sys
 if sys.version_info[0] < 3:
@@ -12,16 +13,20 @@ import numpy as np
 import pandas as pd
 import PIL.Image
 import plotly.express as px
+import plotly.graph_objects as go
 import requests
 import urllib
 
-class_label_colormap = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"]
+class_label_colormap = ["#E69F00", "#8F00FF", "#56B4E9", "#009E73", "#F0E442", "#ff4f00"]
+RGB_colormap = [(230,159,0), (143,0,255), (86,180,233), (0,158,115), (240,228,66), (255,79,0)]
 
 
 #### HELPER UTILS
 def dcm_to_np(dir_path):
     np_volume = imageio.volread(dir_path)
     # np_volume = imageio.volread("imageio:stent.npz")
+    if len(list(np_volume.shape)) == 2:
+        np_volume = np_volume.reshape(1,np_volume.shape[0],np_volume.shape[1])
     return np_volume
 
 
@@ -37,7 +42,7 @@ def shapes_to_key(shapes):
     return json.dumps(shapes)
 
 
-def label_to_colors(img, colormap=px.colors.qualitative.Light24, alpha=128, color_class_offset=0):
+def label_to_colors(img, colormap=RGB_colormap, alpha=128, color_class_offset=0):
     """
     Take MxN matrix containing integers representing labels and return an MxNx4
     matrix where each label has been replaced by a color looked up in colormap.
@@ -52,10 +57,6 @@ def label_to_colors(img, colormap=px.colors.qualitative.Light24, alpha=128, colo
     def fromhex(n):
         return int(n, base=16)
 
-    colormap = [
-        tuple([fromhex(h[s: s + 2]) for s in range(0, len(h), 2)])
-        for h in [c.replace("#", "") for c in colormap]
-    ]
     cimg = np.zeros(img.shape[:2] + (3,), dtype="uint8")
     minc = np.min(img)
     maxc = np.max(img)
@@ -90,10 +91,20 @@ def look_up_seg(d, key):
     return img
 
 
-def make_default_figure(image_index, np_volume, shapes=[], stroke_color='#ff4f00', stroke_width=3, image_cache=None):
+
+def make_default_figure(image_index, client, shapes=[], stroke_color=class_label_colormap[-1], stroke_width=3, image_cache=None):
     if image_cache is None:
-        im = np_volume[image_index]
+        try:
+            im = client.values_indexer[image_index].read()
+            # im = client['lrc32_artifacts'][image_index].read()
+            # buffer = BytesIO()
+            # client.values_indexer[image_index].export(buffer, format="image/png")
+            # im = np.asarray(PIL.Image.open(buffer))
+        except:
+            im = client[image_index]
+        print(im)
         width, height = im.shape[0:2]
+        print(width, height)
         print('default figure')
     else:
         # image_cache is a dict, keys=filename, value=bin encoding
@@ -133,15 +144,17 @@ def generate_figure(log, start):
     if end == -1:
         end = len(log)
     log = log[start:end]
-    df = pd.read_csv(StringIO(log.replace('\n\n','\n')), sep=',')
-    fig = px.line(df)
-    fig.update_layout(xaxis_title="epoch", yaxis_title="loss", margin=dict(l=20, r=20, t=20, b=20))
-    return fig
+    df = pd.read_csv(StringIO(log.replace('\n\n','\n')), sep='\t')
+    try:
+        fig = px.line(df)
+        fig.update_layout(xaxis_title="epoch", yaxis_title="loss", margin=dict(l=20, r=20, t=20, b=20))
+        return fig
+    except Exception:
+        return go.Figure(go.Scatter(x=[], y=[]))
 
 
 def get_job(user, mlex_app, job_type=None, deploy_location=None):
     url = 'http://job-service:8080/api/v0/jobs?'
-    # url = 'http://host.docker.internal:8080/api/v0/jobs?'
     if user:
         url += ('&user=' + user)
     if mlex_app:
@@ -157,7 +170,6 @@ def get_job(user, mlex_app, job_type=None, deploy_location=None):
 
 def post_job(job):
     url = 'http://job-service:8080/api/v0/jobs'
-    # url = 'http://host.docker.internal:8080/api/v0/jobs'
     job_dict = {"user": job.user,
                 "mlex_app": job.mlex_app,
                 "job_type": job.job_type,
@@ -169,8 +181,18 @@ def post_job(job):
                 "container_cmd": job.container_cmd,
                 "container_kwargs": job.container_kwargs
                 }
-    print(f'job dict\n{json.dumps(job_dict)}')
     return requests.post(url, json=job_dict).status_code
 
+
+def init_counters(user, job_type):
+    job_list = get_job(user, 'seg-demo')
+    if job_list is not None:
+        for job in reversed(job_list):
+            last_job = job['job_type'].split()
+            value = int(last_job[-1])
+            last_job = ' '.join(last_job[0:-1])
+            if last_job == job_type:
+                return value + 1
+    return 0
 
 

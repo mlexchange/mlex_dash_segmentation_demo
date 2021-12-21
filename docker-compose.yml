@@ -19,6 +19,19 @@ services:
     networks:
       - computing_api_default
       - model-regist_default
+    depends_on:
+      - tiled
+  
+  tiled:
+    build:
+      context: "tiled/"
+      dockerfile: "docker/Dockerfile"
+    volumes:
+      # if using a different data path, modify the next line as
+      # - "path/to/data:/data"
+      - "${PWD}/dash-seg/data/tiled:/data"
+    ports:
+      - "8057:8057"
 
 volumes: #create named dir and link it to the data folder, so all services can use
   data-m:
