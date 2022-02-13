@@ -1,10 +1,10 @@
 # LIBRARIES
-import base64
-import io
-import json
 import os
+import io
 import pathlib
 import re
+import json
+import base64
 
 import dash
 import dash_bootstrap_components as dbc
@@ -426,7 +426,7 @@ def update_table(n, row):
         log = data_table[row[0]]["job_logs"]
         if log:
             if ' '.join(job_type[0:-1]) == 'deploy':
-                values = (int(log.split("classified\t")[-1])+1)/data_table[row[0]]["image_length"]*100
+                values = (int(float(log.split("classified\t")[-1]))+1)/data_table[row[0]]["image_length"]*100
                 labels = 'Deploy progress: ' + str(round(values)) + '%'
                 if values < 100 or data_table[row[0]]['status'] == 'running':
                     progress = [dbc.Label(labels), dbc.Progress(value=values)]
