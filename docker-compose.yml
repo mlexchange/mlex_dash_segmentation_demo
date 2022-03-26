@@ -18,7 +18,7 @@ services:
       - "8050:8050"
     networks:
       - computing_api_default
-      - model-regist_default
+      - content-regist_default
 
 volumes: #create named dir and link it to the data folder, so all services can use
   data-m:
