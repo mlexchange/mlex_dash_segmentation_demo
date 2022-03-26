@@ -365,7 +365,7 @@ def model_list_GET_call():
     """
     Get the whole model registry data from the fastapi url.
     """
-    url = 'http://model-api:8000/api/v0/model-list'  # current host, could be inside the docker
+    url = 'http://content-api:8000/api/v0/models'  # current host, could be inside the docker
     response = urllib.request.urlopen(url)
     data = json.loads(response.read())
     return data
