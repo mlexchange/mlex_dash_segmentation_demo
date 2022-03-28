@@ -31,6 +31,6 @@ volumes: #create named dir and link it to the data folder, so all services can u
 networks:
   computing_api_default:
     external: true
-  model-regist_default:
+  content-regist_default:
     external: true
     
