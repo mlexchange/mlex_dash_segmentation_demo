@@ -15,3 +15,4 @@ plotly-express==0.4.1
 scikit_image==0.18.3
 requests==2.26.0
 werkzeug==2.0.0
+tifffile==2022.2.9
