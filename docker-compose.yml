@@ -15,10 +15,10 @@ services:
       - ./dash-seg/data:/app/work/data
       - ./dash-seg/src:/app/work/src
     ports:
-      - "8050:8050"
+      - "8052:8050"
     networks:
       - computing_api_default
-      - content_regist_default
+      - content_regist_content_registry_network
 
 volumes: #create named dir and link it to the data folder, so all services can use
   data-m:
@@ -31,6 +31,6 @@ volumes: #create named dir and link it to the data folder, so all services can u
 networks:
   computing_api_default:
     external: true
-  content_regist_default:
+  content_regist_content_registry_network:
     external: true
     
