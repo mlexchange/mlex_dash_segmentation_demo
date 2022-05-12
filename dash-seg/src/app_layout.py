@@ -377,6 +377,7 @@ meta = [
             # Store for user created masks
             # data is a list of dicts describing shapes
             dcc.Store(id='none', data=''),
+            dcc.Store(id='model-uid', data=''),
             dcc.Store(id='username', data=''),
             dcc.Store(id='experiment-store', data={}),
             dcc.Store(id="masks", data={}),
