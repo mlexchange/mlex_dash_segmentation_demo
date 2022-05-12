@@ -3,7 +3,7 @@
 The first version of the image segmentation demo integrated with the model registry and the compute sevice manager.  
 To run this demo, `docker-compose` the followings (in the order):  
 -	mlex\_model\_registry: 65b803a  
--	mlex\_api: f7a4dd6.   
+-	mlex\_api: b384722.   
 -  mlex\_dash\_segmentation\_demo
 
 Then build the images of the models using the command `make build_docker`. (Currently fully supports random forest, pyMSDtorch, and kmeans model) 
