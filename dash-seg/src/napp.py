@@ -19,10 +19,9 @@ import PIL.Image
 import plotly.graph_objects as go
 from skimage import draw
 import skimage
-import urllib.request
+import requests
 import uuid
 
-import job_dispatcher
 from kwarg_editor import JSONParameterEditor
 import helper_utils
 from app_layout import app, MODEL_DATABASE
@@ -102,7 +101,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
 
                 # read in image (too large to store all images in browser cache)
                 try:
-                    if model_name == "Random Forest":
+                    if model_name == "random_forest":
                         semi = imageio.imread(
                             'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
                                                                                        image_slider_value))
@@ -110,7 +109,7 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                         semi = imageio.imread(
                             'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
                                                                                        image_slider_value))
-                    elif model_name == "K-Means":
+                    elif model_name == "kmeans":
                         semi = imageio.imread(
                             'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
                                                                                        image_slider_value))
@@ -228,34 +227,6 @@ def show_message(dataset, show_segmentation_value, row, n_clicks1, n_clicks2, jo
 
 
 @app.callback(
-    Output('model-source', 'children'),
-    Input('seg-dropdown', 'value'),
-)
-def update_model_source(seg_dropdown_value):
-    model_source = ''
-    conditions   = {}
-    data         = model_list_GET_call()
-    
-    if seg_dropdown_value == 'Random Forest':
-        conditions = {'model_name': 'random_forest'}
-    elif seg_dropdown_value == 'pyMSDtorch':
-        conditions = {'model_name': 'pyMSDtorch'}
-    elif seg_dropdown_value == 'K-Means':
-        conditions = {'model_name': 'kmeans'}
-    
-    if bool(conditions):
-        model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
-        model_source = [dbc.Label('Model Source', className='mr-2'),
-                        dcc.Textarea(id='msg-display',
-                             value=model[0]["reference"],
-                             style={'width':'100%', 'height': '3rem'},
-                             className='mb-2')
-                        ]
-
-    return model_source
-
-
-@app.callback(
     Output('masks', 'data'),
     Output('graph', 'relayoutData'),
     Input('del-mask', 'n_clicks'),
@@ -361,17 +332,6 @@ class mask_tasks():
         return mask_names
 
 
-def model_list_GET_call():
-    """
-    Get the whole model registry data from the fastapi url.
-    """
-    url = 'http://content-api:8000/api/v0/models'  # current host, could be inside the docker
-    response = urllib.request.urlopen(url)
-    data = json.loads(response.read())
-    return data
-
-
-
 ### REACTIVE COMPONENTS FOR TABLE, LOGS, AND PLOT GENERATION ###
 @app.callback(
     [
@@ -401,22 +361,23 @@ def update_table(n, row):
     data_table = []
     if job_list is not None:
         for job in job_list:
-            job_type = job['job_type'].split()
+            job_type = job['job_kwargs']['kwargs']['job_type'].split()
             if ' '.join(job_type[0:-1]) == 'deploy':
-                param = job['container_kwargs']['training_model']
+                param = job['job_kwargs']['kwargs']['training_model']
             else:
-                param = str(job['container_kwargs']['parameters'])
+                param = str(job['job_kwargs']['kwargs']['parameters'])
             data_table.insert(0,
                               dict(
                                   job_id=job['uid'],
-                                  job_type=job['job_type'],
-                                  status=job['status'],
-                                  dataset=job['container_kwargs']['dataset'],
-                                  image_length = job['container_kwargs']['image_length'],
-                                  model_name=job['container_kwargs']['model_name'],
+                                  job_type=job['job_kwargs']['kwargs']['job_type'],
+                                  status=job['status']['state'],
+                                  dataset=job['job_kwargs']['kwargs']['dataset'],
+                                  image_length = job['job_kwargs']['kwargs']['image_length'],
+                                  model_name=job['job_kwargs']['kwargs']['model_name'],
+                                  model_uid=job['job_kwargs']['kwargs']['model_uid'],
                                   parameters=param,
-                                  experiment_id=job['container_kwargs']['experiment_id'],
-                                  job_logs=job['container_logs'])
+                                  experiment_id=job['job_kwargs']['kwargs']['experiment_id'],
+                                  job_logs=job['logs'])
                               )
     
     progress = ''
@@ -426,6 +387,8 @@ def update_table(n, row):
         log = data_table[row[0]]["job_logs"]
         if log:
             if ' '.join(job_type[0:-1]) == 'deploy':
+                inside = log.split("classified\t")[-1]
+                print(f'inside float {inside}')
                 values = (int(float(log.split("classified\t")[-1]))+1)/data_table[row[0]]["image_length"]*100
                 labels = 'Deploy progress: ' + str(round(values)) + '%'
                 if values < 100 or data_table[row[0]]['status'] == 'running':
@@ -435,7 +398,74 @@ def update_table(n, row):
             if start > -1 and len(log) > start-5:
                 fig = helper_utils.generate_figure(log,start)
                 return data_table, True, fig, log, progress
+    
     return data_table, False, go.Figure(go.Scatter(x=[], y=[])), log, progress
+
+
+@app.callback(
+    [   Output('additional-seg-params', 'children'),
+        Output('brush-collapse', 'is_open'),
+        Output('instructions-collapse', 'is_open'),
+        Output('model-source', 'children'),
+        Output('model-uid', 'data')
+    ],
+    Input('seg-dropdown', 'value')
+)
+def additional_model_features(seg_dropdown_value):
+    model_source = ''
+    gui_item = []
+    conditions   = {'name': 'random_forest'}
+    data = requests.get('http://content-api:8000/api/v0/models').json()
+    model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
+    model_uid = model[0]["content_id"]
+    
+    if seg_dropdown_value == 'Random Forest':
+        conditions = {'name': 'random_forest'}
+    elif seg_dropdown_value == 'pyMSDtorch':
+        conditions = {'name': 'pyMSDtorch'}
+    elif seg_dropdown_value == 'K-Means':
+        conditions = {'name': 'kmeans'}
+    
+    if bool(conditions):
+        model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
+        model_uid = model[0]["content_id"]
+        model_source = [dbc.Label('Model Source', className='mr-2'),
+                        dcc.Textarea(id='msg-display',
+                             value=model[0]["reference"],
+                             style={'width':'100%', 'height': '3rem'},
+                             className='mb-2')
+                        ]
+                        
+        gui_item = JSONParameterEditor(_id={'type': 'parameter_editor'},  # pattern match _id (base id), name
+                                   json_blob=model[0]["gui_parameters"],
+                                   )
+        gui_item.init_callbacks(app)
+    
+    is_open = True
+    if model[0]["type"] == "unsupervised":
+        is_open = not is_open
+    
+    return [gui_item, is_open, not is_open, model_source, model_uid]
+
+
+def get_content(uid: str):
+    url = 'http://content-api:8000/api/v0/contents/{}/content'.format(uid)  # current host, could be inside the docker
+    response = requests.get(url).json()
+    return response
+
+
+def job_content_dict(content):
+    job_content = {# 'mlex_app': content['name'],
+                   'mlex_app': 'seg-demo',
+                   'service_type': content['service_type'],
+                   'working_directory': DATA_DIR,
+                   'job_kwargs': {'uri': content['uri'], 
+                                  'cmd': content['cmd'][0]}
+    }
+    if 'map' in content:
+        job_content['job_kwargs']['map'] = content['map']
+    
+    return job_content
 
 
 @app.callback(
@@ -451,16 +481,18 @@ def update_table(n, row):
         State('image-store', 'data'),
         State('additional-seg-params', 'children'),
         State('dataset-selection', 'value'),
-        State("image-length", "data")
+        State("image-length", "data"),
+        State("model-uid", "data")
     ]
 )
-def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value, image_store_data, children, dataset, image_length):
+def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_value, \
+                       image_store_data, children, dataset, image_length, model_uid):
     """
 
     Args:
         train_seg_n_clicks: dash, triggers the callback when train button is pressed
         masks_data: array, annotations collected from user
-        count: int, count of training jobs by this user
+        counts: int, counts of training jobs by this user
         seg_dropdown_value: str, contains the selected segmentation model
         image_store_data: dict[dict] uploaded image?
         children: ??
@@ -468,7 +500,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
 
     Returns:
         debug: ??
-        count: int, updated training count
+        counts: int, updated training counts
 
     Prepares data for segmentation job.
         1. Convert svg path to nparray of size nxnx3 (rgb image). 0 is unlabelled, user labelled class is
@@ -485,8 +517,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
         raise PreventUpdate
 
     # initializes the counter according to the latest training job in the database
-    if count == 0:
-        count = helper_utils.init_counters(USER, 'training')
+    if counts == 0:
+        counts = helper_utils.init_counters(USER, 'training')
 
     # dataset selection
     np_volume = helper_utils.dcm_to_np(dataset)
@@ -553,51 +585,48 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
             value = child["props"]["children"][1]["props"]["value"]
             input_params[key] = value
 
+    model_content = get_content(model_uid)
+    job_content = job_content_dict(model_content)
+
+    job_content['job_kwargs']['kwargs'] = {}
+    job_content['job_kwargs']['kwargs']['image_length'] = image_length
+    job_content['job_kwargs']['kwargs']['dataset'] = dataset
+    job_content['job_kwargs']['kwargs']['experiment_id'] = experiment_id
+    job_content['job_kwargs']['kwargs']['parameters'] = input_params
+    job_content['job_kwargs']['kwargs']['model_name'] = model_content['name']
+    job_content['job_kwargs']['kwargs']['model_uid'] = model_uid
+    job_content['job_kwargs']['kwargs']['job_type'] = "training " + str(counts)
+    
+    compute_dict = {'user_uid': USER,
+                    'host_list': ['mlsandbox.als.lbl.gov', 'local.als.lbl.gov', 'vaughan.als.lbl.gov'],
+                    'requirements': {'num_processors': 2,
+                                     'num_gpus': 0,
+                                     'num_nodes': 2},
+                    }
+    compute_dict['job_list'] = [job_content]
+    compute_dict['dependencies'] = {'0':[]}
+    compute_dict['description'] = 'Seg-demo training model: ' + job_content['mlex_app']
+    compute_dict['requirements']['num_nodes'] = 1
+    
+    cmd_list = []
     if seg_dropdown_value == 'Random Forest':
-        print('now doing random forest...')
-        docker_cmd = "python random_forest.py"
-        kw_args = {'model_name':  seg_dropdown_value,
-                   'directories': [images_dir_docker, feature_dir_docker, mask_dir_docker, model_dir_docker],
-                   'parameters': input_params,
-                   'experiment_id': experiment_id,
-                   'dataset': dataset,
-                   'image_length': image_length
-                   }
+        cmd_list = ["python random_forest.py", images_dir_docker, feature_dir_docker, mask_dir_docker, model_dir_docker]
 
     elif seg_dropdown_value == "pyMSDtorch":
-        docker_cmd = "python src/train.py"
-        kw_args = {'model_name':  seg_dropdown_value,
-                   'directories': [mask_dir_docker, images_dir_docker, model_dir_docker],
-                   'parameters':  input_params,
-                   'experiment_id': experiment_id,
-                   'dataset': dataset,
-                   'image_length': image_length
-                   }
+        cmd_list = ["python src/train.py", mask_dir_docker, images_dir_docker, model_dir_docker]
 
     elif seg_dropdown_value == "K-Means":
-        docker_cmd = "python kmeans.py"
-        kw_args = {'model_name':  seg_dropdown_value,
-                   'directories': [images_dir_docker, model_dir_docker],
-                   'parameters':  input_params,
-                   'experiment_id': experiment_id,
-                   'dataset': dataset,
-                   'image_length': image_length
-                   }
-
-    train_job = job_dispatcher.SimpleJob(user=USER,
-                                         job_type="training " + str(count),
-                                         description= " ",
-                                         deploy_location="local",
-                                         gpu=False,
-                                         data_uri=str(DATA_DIR),
-                                         container_uri=MODEL_DATABASE[seg_dropdown_value],
-                                         container_cmd=docker_cmd,
-                                         container_kwargs=kw_args,
-                                         )
-    train_job.launch_job()
-    count += 1
+        cmd_list = ["python kmeans.py", images_dir_docker, model_dir_docker]
+    
+    docker_cmd = " ".join(cmd_list)
+    docker_cmd = docker_cmd + ' \'' + json.dumps(input_params) + '\''
+    job_content['job_kwargs']['cmd'] = docker_cmd
+    
+    response = requests.post('http://job-service:8080/api/v0/workflows', json=compute_dict)
+    
+    counts += 1
     print('returning')
-    return ['', count]
+    return ['', counts]
 
 
 @app.callback(
@@ -617,20 +646,20 @@ def train_segmentation(train_seg_n_clicks, masks_data, count, seg_dropdown_value
 
     prevent_initial_call=True
 )
-def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_data, dataset, image_length):
+def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_data, dataset, image_length):
     """
 
     Args:
         compute_seg_n_clicks: dash type, if clicked triggers this func
         image_store_data: dict[dict] ???
-        count: int, count of deploy jobs for this user
+        counts: int, counts of deploy jobs for this user
         row: array, contains the selected row in the list of jobs
         job_data: array, lists of jobs
         dataset: str, contains the selected dataset
 
     Returns:
         classified_image: array, segmentation mask
-        count: int, updated count
+        counts: int, updated counts
     """
 
     if compute_seg_n_clicks is None or not bool(row):
@@ -641,8 +670,8 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_da
          raise PreventUpdate
 
     # initializes the counter according to the latest deploy job in the database
-    if count == 0:
-        count = helper_utils.init_counters(USER, 'deploy')
+    if counts == 0:
+        counts = helper_utils.init_counters(USER, 'deploy')
 
     # create user directory to store users data/experiments
     # dataset selection
@@ -683,87 +712,54 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, count, row, job_da
     out_dir_dock = str(out_dir_dock)
     print('computing segmentation...')
     meta_params = {"show_progress": 1}  # not be able for empty
-    if model_name == "Random Forest":
+    
+    model_uid = job_data[row[0]]["model_uid"]
+    model_content = get_content(model_uid)
+    job_content = job_content_dict(model_content)
+    job_content['job_kwargs']['kwargs'] = {}
+    job_content['job_kwargs']['kwargs']['image_length'] = image_length
+    job_content['job_kwargs']['kwargs']['dataset'] = dataset
+    job_content['job_kwargs']['kwargs']['experiment_id'] = experiment_id
+    job_content['job_kwargs']['kwargs']['parameters'] = meta_params
+    job_content['job_kwargs']['kwargs']['model_name'] = model_content['name']
+    job_content['job_kwargs']['kwargs']['model_uid'] = model_uid
+    job_content['job_kwargs']['kwargs']['training_model'] = model_description
+    job_content['job_kwargs']['kwargs']['job_type'] = "deploy " + str(counts)
+    
+    compute_dict = {'user_uid': USER,
+                    'host_list': ['mlsandbox.als.lbl.gov', 'local.als.lbl.gov', 'vaughan.als.lbl.gov'],
+                    'requirements': {'num_processors': 2,
+                                     'num_gpus': 0,
+                                     'num_nodes': 2},
+                    }
+    compute_dict['job_list'] = [job_content]
+    compute_dict['dependencies'] = {'0':[]}
+    compute_dict['description'] = 'Seg-demo segmenting with model: ' + job_content['mlex_app']
+    compute_dict['requirements']['num_nodes'] = 1
+    
+    cmd_list = []
+    if model_name == 'random_forest':
         model_input_dir_dock = MODEL_INPUT_DIR / 'random-forest.model'
-        docker_cmd = "python segment.py"
-        kw_args = {'model_name':  model_name,
-                   'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
-                   'parameters': meta_params,
-                   'experiment_id': experiment_id,
-                   'dataset': dataset,
-                   'image_length': image_length,
-                   'training_model': model_description
-                   }
+        cmd_list = ["python segment.py", im_input_dir_dock, str(model_input_dir_dock), out_dir_dock]
 
     elif model_name == "pyMSDtorch":
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
-        docker_cmd = "python src/segment.py"
-        kw_args = {'model_name':  model_name,
-                   'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
-                   'parameters': meta_params,
-                   'experiment_id': experiment_id,
-                   'dataset': dataset,
-                   'image_length': image_length,
-                   'training_model': model_description
-                   }
+        cmd_list = ["python src/segment.py", im_input_dir_dock, str(model_input_dir_dock), out_dir_dock]
 
-    elif model_name == "K-Means":
+    elif model_name == "kmeans":
         model_input_dir_dock = MODEL_INPUT_DIR / 'kmeans.joblib'
-        docker_cmd = "python segment.py"
-        kw_args = {'model_name':  model_name,
-                   'directories': [im_input_dir_dock, str(model_input_dir_dock), out_dir_dock],
-                   'parameters': meta_params,
-                   'experiment_id': experiment_id,
-                   'dataset': dataset,
-                   'image_length': image_length,
-                   'training_model': model_description
-                   }
-
-    seg_job = job_dispatcher.SimpleJob(
-                    user=USER,
-                    job_type="deploy " + str(count),
-                    description= " ",
-                    deploy_location="local",
-                    gpu=False,
-                    data_uri=str(DATA_DIR),
-                    container_uri=MODEL_DATABASE[model_name],
-                    container_cmd=docker_cmd,
-                    container_kwargs=kw_args,
-                    )
-
-    seg_job.launch_job()
-    count += 1
+        cmd_list = ["python segment.py", im_input_dir_dock, str(model_input_dir_dock), out_dir_dock]
+    
+    docker_cmd = " ".join(cmd_list)
+    docker_cmd = docker_cmd + ' \'' + json.dumps(meta_params) + '\''
+    print(f'docker_cmd {docker_cmd}')
+    job_content['job_kwargs']['cmd'] = docker_cmd
+    
+    response = requests.post('http://job-service:8080/api/v0/workflows', json=compute_dict)
+    
+    counts += 1
     print('sending images to server to be segmented')
-    return ['', count]
-
-
-@app.callback(
-    [   Output('additional-seg-params', 'children'),
-        Output('brush-collapse', 'is_open'),
-        Output('instructions-collapse', 'is_open')
-    ],
-    Input('seg-dropdown', 'value')
-)
-def additional_seg_features(seg_dropdown_value):
-    data = model_list_GET_call()
-    if seg_dropdown_value == 'Random Forest':
-        conditions = {'model_name': 'random_forest'}
-    elif seg_dropdown_value == 'pyMSDtorch':
-        conditions = {'model_name': 'pyMSDtorch'}
-    elif seg_dropdown_value == 'K-Means':
-        conditions = {'model_name': 'kmeans'}
-    
-    model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
-    gui_item = JSONParameterEditor(_id={'type': 'parameter_editor'},  # pattern match _id (base id), name
-                                   json_blob=model[0]["gui_parameters"],
-                                   )
-    gui_item.init_callbacks(app)
-    
-    is_open = True
-    if model[0]["type"] == "unsupervised":
-        is_open = not is_open
-        
-    return [gui_item, is_open, not is_open]
+    return ['', counts]
 
 
 if __name__ == "__main__":

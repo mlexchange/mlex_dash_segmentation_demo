@@ -146,42 +146,22 @@ def generate_figure(log, start):
         return go.Figure(go.Scatter(x=[], y=[]))
 
 
-def get_job(user, mlex_app, job_type=None, deploy_location=None):
+def get_job(user, mlex_app):
     url = 'http://job-service:8080/api/v0/jobs?'
     if user:
         url += ('&user=' + user)
     if mlex_app:
         url += ('&mlex_app=' + mlex_app)
-    if job_type:
-        url += ('&job_type=' + job_type)
-    if deploy_location:
-        url += ('deploy_location' + deploy_location)
-    response = urllib.request.urlopen(url)
-    data = json.loads(response.read())
-    return data
-
-
-def post_job(job):
-    url = 'http://job-service:8080/api/v0/jobs'
-    job_dict = {"user": job.user,
-                "mlex_app": job.mlex_app,
-                "job_type": job.job_type,
-                "description": job.description,
-                "deploy_location": job.deploy_location,
-                "gpu": job.gpu,
-                "data_uri": job.data_uri,
-                "container_uri": job.container_uri,
-                "container_cmd": job.container_cmd,
-                "container_kwargs": job.container_kwargs
-                }
-    return requests.post(url, json=job_dict).status_code
+    
+    response = requests.get(url).json()
+    return response
 
 
 def init_counters(user, job_type):
     job_list = get_job(user, 'seg-demo')
     if job_list is not None:
         for job in reversed(job_list):
-            last_job = job['job_type'].split()
+            last_job = job['job_kwargs']['kwargs']['job_type'].split()
             value = int(last_job[-1])
             last_job = ' '.join(last_job[0:-1])
             if last_job == job_type:

@@ -66,7 +66,7 @@ job_status_display = [
                 fixed_rows={'headers': True},
                 css=[{"selector": ".show-hide", "rule": "display: none"}],
                 style_data_conditional=[
-                    {'if': {'column_id': 'status', 'filter_query': '{status} = completed'},
+                    {'if': {'column_id': 'status', 'filter_query': '{status} = complete'},
                      'backgroundColor': 'green',
                      'color': 'white'},
                     {'if': {'column_id': 'status', 'filter_query': '{status} = failed'},
@@ -377,6 +377,7 @@ meta = [
             # Store for user created masks
             # data is a list of dicts describing shapes
             dcc.Store(id='none', data=''),
+            dcc.Store(id='model-uid', data=''),
             dcc.Store(id='username', data=''),
             dcc.Store(id='experiment-store', data={}),
             dcc.Store(id="masks", data={}),
