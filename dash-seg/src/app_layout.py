@@ -4,6 +4,7 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_auth
 import dash_table
+import dash_uploader as du
 ##### HELPER UTILS
 import helper_utils
 ##### TEMPLATE MODULES
@@ -31,13 +32,16 @@ VALID_USERNAME_PASSWORD_PAIRS = {
 #### SETUP DASH APP ####
 external_stylesheets = [dbc.themes.BOOTSTRAP, "../assets/segmentation-style.css"]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, suppress_callback_exceptions=True)
-auth = dash_auth.BasicAuth(
-        app,
-        VALID_USERNAME_PASSWORD_PAIRS,
-        )
+# auth = dash_auth.BasicAuth(
+#         app,
+#         VALID_USERNAME_PASSWORD_PAIRS,
+#         )
 
 server = app.server
 app.title = "MLExchange Labeling | Image Segmentation"
+
+UPLOAD_FOLDER_ROOT = "data/upload"
+du.configure_upload(app, UPLOAD_FOLDER_ROOT, use_upload_id=False)
 
 ### BEGIN DASH CODE ###
 header = templates.header()
@@ -106,7 +110,13 @@ segmentation = [
         children=[
             dbc.CardHeader(
                 [
-                    dbc.Label('Choose Dataset', className='mr-2'),
+                    du.Upload(
+                        id="dash-uploader",
+                        max_file_size=1800,  # 1800 Mb
+                        cancel_button=True,
+                        pause_button=True
+                    ),
+                    dbc.Label('Or Choose Dataset', className='mr-2'),
                     dcc.Dropdown(
                         id='dataset-selection',
                         options=[
@@ -390,6 +400,7 @@ meta = [
             dcc.Store(id='train_counter', data=0),
             dcc.Store(id='seg_counter', data=0),
             dcc.Store(id='image-length', data=0),
+            dcc.Store(id='uploader-filename', data=[]),
         ],
     )
 ]

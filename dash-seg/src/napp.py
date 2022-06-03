@@ -33,10 +33,69 @@ MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
 USER = 'mlexchange-team'
 DATA_DIR = str(os.environ['DATA_DIR'])
-
+UPLOAD_FOLDER_ROOT = "data/upload"
 
 def slider_style(n):
     return {0: '0', n: str(n)}
+
+def add_paths_from_dir(dir_path, supported_formats, list_file_path):
+    '''
+    Args:
+        dir_path, str:            full path of a directory
+        supported_formats, list:  supported formats, e.g., ['tiff', 'tif', 'jpg', 'jpeg', 'png']
+        list_file_path, [str]:     list of absolute file paths
+    
+    Returns:
+        Adding unique file paths to list_file_path, [str]
+    '''
+    root_path, list_dirs, filenames = next(os.walk(dir_path))
+    for filename in filenames:
+        exts = filename.split('.')
+        if exts[-1] in supported_formats and exts[0] != '':
+            file_path = root_path + '/' + filename
+            if file_path not in list_file_path:
+                list_file_path.append(file_path)
+            
+    for dirname in list_dirs:
+        new_dir_path = dir_path + '/' + dirname
+        list_file_path = add_paths_from_dir(new_dir_path, supported_formats, list_file_path)
+    
+    return list_file_path
+
+@app.callback(
+    Output('uploader-filename', 'data'),
+    Input('dash-uploader', 'isCompleted'),
+    Input('dataset-selection', 'value'),
+    State('dash-uploader', 'fileNames'),
+    State('dash-uploader', 'upload_id'),
+)
+def image_upload(iscompleted, dataset, upload_filename, upload_id):
+    if not iscompleted or \
+       dash.callback_context.triggered[0]['prop_id'] == 'dataset-selection.value':
+        return []
+            
+    list_filenames = []
+    supported_formats = ['tiff', 'tif', 'jpg', 'jpeg', 'png']
+    if upload_filename is not None:
+        path_to_zip_file = pathlib.Path(UPLOAD_FOLDER_ROOT) / upload_filename[0]
+        if upload_filename[0].split('.')[-1] == 'zip':   # unzip files and delete zip file
+            zip_ref = zipfile.ZipFile(path_to_zip_file)  # create zipfile object
+            path_to_folder = pathlib.Path(UPLOAD_FOLDER_ROOT) / upload_filename[0].split('.')[-2]
+            if (upload_filename[0].split('.')[-2] + '/') in zip_ref.namelist():
+                zip_ref.extractall(pathlib.Path(UPLOAD_FOLDER_ROOT))    # extract file to dir
+            else:
+                zip_ref.extractall(path_to_folder)
+                
+            zip_ref.close()  # close file
+            os.remove(path_to_zip_file)
+            list_filenames = add_paths_from_dir(str(path_to_folder), supported_formats, list_filenames)
+        else:
+            list_filenames.append(str(path_to_zip_file))
+
+    return list_filenames
+
+
+
 
 ### REACTIVE COMPONENTS FOR DISPLAY FIGURE ###
 @app.callback(
@@ -47,22 +106,21 @@ def slider_style(n):
         Output("image-slider", "marks"),
         Output("image-length", "data"),
     ],
-    [
-        Input("image-slider", "value"),
-        Input({'type': "label-class-button", "index": dash.dependencies.ALL},
-              "n_clicks_timestamp",
-              ),
-        Input('show-segmentation', 'value'),
-        Input('image-store', 'data'),
-        Input('stroke-width', 'value'),
-        Input('jobs_table', 'selected_rows'),
-        Input('dataset-selection', 'value'),
-        Input('masks', 'data'),
-    ],
+    Input("image-slider", "value"),
+    Input({'type': "label-class-button", "index": dash.dependencies.ALL},
+          "n_clicks_timestamp",
+          ),
+    Input('show-segmentation', 'value'),
+    Input('image-store', 'data'),
+    Input('stroke-width', 'value'),
+    Input('jobs_table', 'selected_rows'),
+    Input('dataset-selection', 'value'),
+    Input('masks', 'data'),
+    Input('uploader-filename', 'data'),
     State('jobs_table', 'data')
 )
 def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, image_store_data,
-                  stroke_width, row, dataset, masks_data, job_data):
+                  stroke_width, row, dataset, masks_data, uploader_filename, job_data):
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     # find label class value by finding button with the most recent click
@@ -89,8 +147,11 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
 
                 # needs to be run in a callback or we don't have access to 'app'
                 USER_NAME = request.authorization['username']
-                # dataset selection - based on selected job
-                np_volume = helper_utils.dcm_to_np('data/mlexchange_store/{}/{}/images/segment_series.tif'.format(USER_NAME, job_id))
+                if bool(uploader_filename):
+                    np_volume = helper_utils.dcm_to_np(uploader_filename[0])
+                else:
+                    # dataset selection - based on selected job
+                    np_volume = helper_utils.dcm_to_np('data/mlexchange_store/{}/{}/images/segment_series.tif'.format(USER_NAME, job_id))
                 image_slider_max = len(np_volume) - 1
                 if image_slider_value > image_slider_max:
                     image_slider_value = 0
@@ -144,8 +205,12 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                
                 return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max+1]
 
-    # dataset selection
-    np_volume = helper_utils.dcm_to_np(dataset)
+    print(f'uploader_filename {uploader_filename}')
+    if bool(uploader_filename):
+        np_volume = helper_utils.dcm_to_np(uploader_filename[0])
+    else:
+        # dataset selection
+        np_volume = helper_utils.dcm_to_np(dataset)
     image_slider_max = len(np_volume) - 1
     if image_slider_value > image_slider_max:
         image_slider_value = 0
@@ -482,11 +547,12 @@ def job_content_dict(content):
         State('additional-seg-params', 'children'),
         State('dataset-selection', 'value'),
         State("image-length", "data"),
-        State("model-uid", "data")
+        State("model-uid", "data"),
+        State('uploader-filename', 'data'),
     ]
 )
 def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_value, \
-                       image_store_data, children, dataset, image_length, model_uid):
+                       image_store_data, children, dataset, image_length, model_uid, upload_filename):
     """
 
     Args:
@@ -519,6 +585,9 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
     # initializes the counter according to the latest training job in the database
     if counts == 0:
         counts = helper_utils.init_counters(USER, 'training')
+
+    if bool(upload_filename):
+        dataset = upload_filename[0]
 
     # dataset selection
     np_volume = helper_utils.dcm_to_np(dataset)
@@ -641,12 +710,14 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
         State('jobs_table', 'selected_rows'),
         State('jobs_table', 'data'),
         State('dataset-selection', 'value'),
-        State("image-length", "data")
+        State("image-length", "data"),
+        State('uploader-filename', 'data'),
     ],
 
     prevent_initial_call=True
 )
-def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_data, dataset, image_length):
+def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_data, \
+                      dataset, image_length, upload_filename):
     """
 
     Args:
@@ -674,6 +745,9 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
         counts = helper_utils.init_counters(USER, 'deploy')
 
     # create user directory to store users data/experiments
+    if bool(upload_filename):
+        dataset = upload_filename[0]
+        
     # dataset selection
     np_volume = helper_utils.dcm_to_np(dataset)
     # find most recent job id (current experiment)
