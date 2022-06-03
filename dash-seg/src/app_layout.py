@@ -23,6 +23,16 @@ MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
                   "K-Means": "mlexchange/k-means-dc",
                 }
 
+# Dataset options
+DATA_OPTION=[
+    {'label': 'Bead Experimental', 'value': 'data/bead_pack.tif'},
+    {'label': 'Bead Simulated', 'value': 'data/bead_pack_artifacts.tif'},
+#     {'label': 'Castle Simulated', 'value': 'data/castle_artifacts.tif'},
+#     {'label': 'Gambier Simulated', 'value': 'data/Gambier_artifacts.tif'},
+    {'label': 'LRC32 Simulated', 'value': 'data/lrc32_artifacts.tif'}
+]
+
+
 
 ### AUTHENTICAION ###
 VALID_USERNAME_PASSWORD_PAIRS = {
@@ -116,17 +126,11 @@ segmentation = [
                         cancel_button=True,
                         pause_button=True
                     ),
-                    dbc.Label('Or Choose Dataset', className='mr-2'),
+                    dbc.Label('Then Choose Dataset', className='mr-2'),
                     dcc.Dropdown(
                         id='dataset-selection',
-                        options=[
-                            {'label': 'Bead Experimental', 'value': 'data/bead_pack.tif'},
-                            {'label': 'Bead Simulated', 'value': 'data/bead_pack_artifacts.tif'},
-                            {'label': 'Castle Simulated', 'value': 'data/castle_artifacts.tif'},
-                            {'label': 'Gambier Simulated', 'value': 'data/Gambier_artifacts.tif'},
-                            {'label': 'LRC32 Simulated', 'value': 'data/lrc32_artifacts.tif'}
-                        ],
-                        value = 'data/bead_pack.tif',
+                        options=DATA_OPTION,
+                        value = DATA_OPTION[0]['value'],
                         clearable=False,
                         style={'margin-bottom': '1rem'}
                     ),
@@ -398,9 +402,10 @@ meta = [
             dcc.Store(id='current-image-num', data=0),
             dcc.Store(id='image-store', data={}),
             dcc.Store(id='train_counter', data=0),
-            dcc.Store(id='seg_counter', data=0),
+            dcc.Store(id='seg-counter', data=0),
             dcc.Store(id='image-length', data=0),
             dcc.Store(id='uploader-filename', data=[]),
+            dcc.Store(id='dataset-options', data=DATA_OPTION),
         ],
     )
 ]

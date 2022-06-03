@@ -5,6 +5,7 @@ import pathlib
 import re
 import json
 import base64
+import copy
 
 import dash
 import dash_bootstrap_components as dbc
@@ -38,63 +39,35 @@ UPLOAD_FOLDER_ROOT = "data/upload"
 def slider_style(n):
     return {0: '0', n: str(n)}
 
-def add_paths_from_dir(dir_path, supported_formats, list_file_path):
-    '''
-    Args:
-        dir_path, str:            full path of a directory
-        supported_formats, list:  supported formats, e.g., ['tiff', 'tif', 'jpg', 'jpeg', 'png']
-        list_file_path, [str]:     list of absolute file paths
-    
-    Returns:
-        Adding unique file paths to list_file_path, [str]
-    '''
-    root_path, list_dirs, filenames = next(os.walk(dir_path))
-    for filename in filenames:
-        exts = filename.split('.')
-        if exts[-1] in supported_formats and exts[0] != '':
-            file_path = root_path + '/' + filename
-            if file_path not in list_file_path:
-                list_file_path.append(file_path)
-            
-    for dirname in list_dirs:
-        new_dir_path = dir_path + '/' + dirname
-        list_file_path = add_paths_from_dir(new_dir_path, supported_formats, list_file_path)
-    
-    return list_file_path
 
 @app.callback(
     Output('uploader-filename', 'data'),
+    Output('dataset-selection', 'options'),
+    Output('dataset-selection', 'value'),
+    Output('dataset-options', 'data'),
     Input('dash-uploader', 'isCompleted'),
     Input('dataset-selection', 'value'),
     State('dash-uploader', 'fileNames'),
     State('dash-uploader', 'upload_id'),
+    State('dataset-options', 'data'),
+    State('dataset-selection', 'value'),
 )
-def image_upload(iscompleted, dataset, upload_filename, upload_id):
-    if not iscompleted or \
-       dash.callback_context.triggered[0]['prop_id'] == 'dataset-selection.value':
-        return []
+def image_upload(iscompleted, dataset, upload_filename, upload_id, dataset_options, dataset_value):
+    print(f'dataset options {dataset_options}')
+    if not iscompleted or dash.callback_context.triggered[0]['prop_id'] == 'dataset-selection.value':
+        return [], dataset_options, dataset_value, dataset_options
             
     list_filenames = []
     supported_formats = ['tiff', 'tif', 'jpg', 'jpeg', 'png']
     if upload_filename is not None:
         path_to_zip_file = pathlib.Path(UPLOAD_FOLDER_ROOT) / upload_filename[0]
-        if upload_filename[0].split('.')[-1] == 'zip':   # unzip files and delete zip file
-            zip_ref = zipfile.ZipFile(path_to_zip_file)  # create zipfile object
-            path_to_folder = pathlib.Path(UPLOAD_FOLDER_ROOT) / upload_filename[0].split('.')[-2]
-            if (upload_filename[0].split('.')[-2] + '/') in zip_ref.namelist():
-                zip_ref.extractall(pathlib.Path(UPLOAD_FOLDER_ROOT))    # extract file to dir
-            else:
-                zip_ref.extractall(path_to_folder)
-                
-            zip_ref.close()  # close file
-            os.remove(path_to_zip_file)
-            list_filenames = add_paths_from_dir(str(path_to_folder), supported_formats, list_filenames)
-        else:
-            list_filenames.append(str(path_to_zip_file))
+        if upload_filename[0].split('.')[-1] != 'zip':
+            new_file_path = str(path_to_zip_file)
+            list_filenames.append(new_file_path)
+            new_label = new_file_path.split('/')[-1]
+            dataset_options.append({'label': new_label, 'value': new_file_path})
 
-    return list_filenames
-
-
+        return list_filenames, dataset_options, new_file_path, dataset_options
 
 
 ### REACTIVE COMPONENTS FOR DISPLAY FIGURE ###
@@ -701,12 +674,12 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
 @app.callback(
     [
         Output('classified-image-store', 'data'),
-        Output('seg_counter', 'data'),
+        Output('seg-counter', 'data'),
     ],
         Input('compute-seg', 'n_clicks'),
     [
         State('image-store', 'data'),
-        State('seg_counter', 'data'),
+        State('seg-counter', 'data'),
         State('jobs_table', 'selected_rows'),
         State('jobs_table', 'data'),
         State('dataset-selection', 'value'),
@@ -744,11 +717,8 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
     if counts == 0:
         counts = helper_utils.init_counters(USER, 'deploy')
 
-    # create user directory to store users data/experiments
     if bool(upload_filename):
         dataset = upload_filename[0]
-        
-    # dataset selection
     np_volume = helper_utils.dcm_to_np(dataset)
     # find most recent job id (current experiment)
     training_experiment_id = job_data[row[0]]["experiment_id"]
@@ -826,7 +796,6 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
     
     docker_cmd = " ".join(cmd_list)
     docker_cmd = docker_cmd + ' \'' + json.dumps(meta_params) + '\''
-    print(f'docker_cmd {docker_cmd}')
     job_content['job_kwargs']['cmd'] = docker_cmd
     
     response = requests.post('http://job-service:8080/api/v0/workflows', json=compute_dict)
