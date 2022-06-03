@@ -53,7 +53,6 @@ def slider_style(n):
     State('dataset-selection', 'value'),
 )
 def image_upload(iscompleted, dataset, upload_filename, upload_id, dataset_options, dataset_value):
-    print(f'dataset options {dataset_options}')
     if not iscompleted or dash.callback_context.triggered[0]['prop_id'] == 'dataset-selection.value':
         return [], dataset_options, dataset_value, dataset_options
             
