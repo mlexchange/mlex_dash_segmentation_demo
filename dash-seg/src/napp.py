@@ -118,7 +118,8 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                 job_id      = experiment_id
 
                 # needs to be run in a callback or we don't have access to 'app'
-                USER_NAME = request.authorization['username']
+                #USER_NAME = request.authorization['username']
+                USER_NAME = USER
                 if bool(uploader_filename):
                     np_volume = helper_utils.dcm_to_np(uploader_filename[0])
                 else:
@@ -565,7 +566,8 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
     np_volume = helper_utils.dcm_to_np(dataset)
     # create user directory to store users data/experiments
     experiment_id = str(uuid.uuid4())  # create unique id for experiment
-    USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
+    #USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
+    USER_NAME = USER
     io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, experiment_id))
     io_path.mkdir(parents=True, exist_ok=True)
 
@@ -724,7 +726,8 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
     experiment_id = str(uuid.uuid4())    # create unique experiment id
     model_name = job_data[row[0]]["model_name"]
     model_description = job_data[row[0]]["job_type"]
-    USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
+    #USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
+    USER_NAME = USER
     io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, experiment_id))
     train_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, training_experiment_id))
     ab_pwd = pathlib.Path().resolve()
