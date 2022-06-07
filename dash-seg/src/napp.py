@@ -5,6 +5,7 @@ import pathlib
 import re
 import json
 import base64
+import copy
 
 import dash
 import dash_bootstrap_components as dbc
@@ -33,10 +34,40 @@ MASK_OUTPUT_DIR = pathlib.Path('data/masks')
 IM_OUTPUT_DIR = pathlib.Path('data/images')
 USER = 'mlexchange-team'
 DATA_DIR = str(os.environ['DATA_DIR'])
-
+UPLOAD_FOLDER_ROOT = "data/upload"
 
 def slider_style(n):
     return {0: '0', n: str(n)}
+
+
+@app.callback(
+    Output('uploader-filename', 'data'),
+    Output('dataset-selection', 'options'),
+    Output('dataset-selection', 'value'),
+    Output('dataset-options', 'data'),
+    Input('dash-uploader', 'isCompleted'),
+    Input('dataset-selection', 'value'),
+    State('dash-uploader', 'fileNames'),
+    State('dash-uploader', 'upload_id'),
+    State('dataset-options', 'data'),
+    State('dataset-selection', 'value'),
+)
+def image_upload(iscompleted, dataset, upload_filename, upload_id, dataset_options, dataset_value):
+    if not iscompleted or dash.callback_context.triggered[0]['prop_id'] == 'dataset-selection.value':
+        return [], dataset_options, dataset_value, dataset_options
+            
+    list_filenames = []
+    supported_formats = ['tiff', 'tif', 'jpg', 'jpeg', 'png']
+    if upload_filename is not None:
+        path_to_zip_file = pathlib.Path(UPLOAD_FOLDER_ROOT) / upload_filename[0]
+        if upload_filename[0].split('.')[-1] != 'zip':
+            new_file_path = str(path_to_zip_file)
+            list_filenames.append(new_file_path)
+            new_label = new_file_path.split('/')[-1]
+            dataset_options.append({'label': new_label, 'value': new_file_path})
+
+        return list_filenames, dataset_options, new_file_path, dataset_options
+
 
 ### REACTIVE COMPONENTS FOR DISPLAY FIGURE ###
 @app.callback(
@@ -47,22 +78,21 @@ def slider_style(n):
         Output("image-slider", "marks"),
         Output("image-length", "data"),
     ],
-    [
-        Input("image-slider", "value"),
-        Input({'type': "label-class-button", "index": dash.dependencies.ALL},
-              "n_clicks_timestamp",
-              ),
-        Input('show-segmentation', 'value'),
-        Input('image-store', 'data'),
-        Input('stroke-width', 'value'),
-        Input('jobs_table', 'selected_rows'),
-        Input('dataset-selection', 'value'),
-        Input('masks', 'data'),
-    ],
+    Input("image-slider", "value"),
+    Input({'type': "label-class-button", "index": dash.dependencies.ALL},
+          "n_clicks_timestamp",
+          ),
+    Input('show-segmentation', 'value'),
+    Input('image-store', 'data'),
+    Input('stroke-width', 'value'),
+    Input('jobs_table', 'selected_rows'),
+    Input('dataset-selection', 'value'),
+    Input('masks', 'data'),
+    Input('uploader-filename', 'data'),
     State('jobs_table', 'data')
 )
 def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, image_store_data,
-                  stroke_width, row, dataset, masks_data, job_data):
+                  stroke_width, row, dataset, masks_data, uploader_filename, job_data):
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     # find label class value by finding button with the most recent click
@@ -88,9 +118,13 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                 job_id      = experiment_id
 
                 # needs to be run in a callback or we don't have access to 'app'
-                USER_NAME = request.authorization['username']
-                # dataset selection - based on selected job
-                np_volume = helper_utils.dcm_to_np('data/mlexchange_store/{}/{}/images/segment_series.tif'.format(USER_NAME, job_id))
+                #USER_NAME = request.authorization['username']
+                USER_NAME = USER
+                if bool(uploader_filename):
+                    np_volume = helper_utils.dcm_to_np(uploader_filename[0])
+                else:
+                    # dataset selection - based on selected job
+                    np_volume = helper_utils.dcm_to_np('data/mlexchange_store/{}/{}/images/segment_series.tif'.format(USER_NAME, job_id))
                 image_slider_max = len(np_volume) - 1
                 if image_slider_value > image_slider_max:
                     image_slider_value = 0
@@ -144,8 +178,12 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                
                 return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max+1]
 
-    # dataset selection
-    np_volume = helper_utils.dcm_to_np(dataset)
+    print(f'uploader_filename {uploader_filename}')
+    if bool(uploader_filename):
+        np_volume = helper_utils.dcm_to_np(uploader_filename[0])
+    else:
+        # dataset selection
+        np_volume = helper_utils.dcm_to_np(dataset)
     image_slider_max = len(np_volume) - 1
     if image_slider_value > image_slider_max:
         image_slider_value = 0
@@ -482,11 +520,12 @@ def job_content_dict(content):
         State('additional-seg-params', 'children'),
         State('dataset-selection', 'value'),
         State("image-length", "data"),
-        State("model-uid", "data")
+        State("model-uid", "data"),
+        State('uploader-filename', 'data'),
     ]
 )
 def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_value, \
-                       image_store_data, children, dataset, image_length, model_uid):
+                       image_store_data, children, dataset, image_length, model_uid, upload_filename):
     """
 
     Args:
@@ -520,11 +559,15 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
     if counts == 0:
         counts = helper_utils.init_counters(USER, 'training')
 
+    if bool(upload_filename):
+        dataset = upload_filename[0]
+
     # dataset selection
     np_volume = helper_utils.dcm_to_np(dataset)
     # create user directory to store users data/experiments
     experiment_id = str(uuid.uuid4())  # create unique id for experiment
-    USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
+    #USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
+    USER_NAME = USER
     io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, experiment_id))
     io_path.mkdir(parents=True, exist_ok=True)
 
@@ -632,21 +675,23 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
 @app.callback(
     [
         Output('classified-image-store', 'data'),
-        Output('seg_counter', 'data'),
+        Output('seg-counter', 'data'),
     ],
         Input('compute-seg', 'n_clicks'),
     [
         State('image-store', 'data'),
-        State('seg_counter', 'data'),
+        State('seg-counter', 'data'),
         State('jobs_table', 'selected_rows'),
         State('jobs_table', 'data'),
         State('dataset-selection', 'value'),
-        State("image-length", "data")
+        State("image-length", "data"),
+        State('uploader-filename', 'data'),
     ],
 
     prevent_initial_call=True
 )
-def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_data, dataset, image_length):
+def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_data, \
+                      dataset, image_length, upload_filename):
     """
 
     Args:
@@ -673,15 +718,16 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
     if counts == 0:
         counts = helper_utils.init_counters(USER, 'deploy')
 
-    # create user directory to store users data/experiments
-    # dataset selection
+    if bool(upload_filename):
+        dataset = upload_filename[0]
     np_volume = helper_utils.dcm_to_np(dataset)
     # find most recent job id (current experiment)
     training_experiment_id = job_data[row[0]]["experiment_id"]
     experiment_id = str(uuid.uuid4())    # create unique experiment id
     model_name = job_data[row[0]]["model_name"]
     model_description = job_data[row[0]]["job_type"]
-    USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
+    #USER_NAME = request.authorization['username']  # needs to be run in a callback or we don't have access to 'app'
+    USER_NAME = USER
     io_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, experiment_id))
     train_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER_NAME, training_experiment_id))
     ab_pwd = pathlib.Path().resolve()
@@ -752,7 +798,6 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
     
     docker_cmd = " ".join(cmd_list)
     docker_cmd = docker_cmd + ' \'' + json.dumps(meta_params) + '\''
-    print(f'docker_cmd {docker_cmd}')
     job_content['job_kwargs']['cmd'] = docker_cmd
     
     response = requests.post('http://job-service:8080/api/v0/workflows', json=compute_dict)

@@ -4,6 +4,7 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_auth
 import dash_table
+import dash_uploader as du
 ##### HELPER UTILS
 import helper_utils
 ##### TEMPLATE MODULES
@@ -22,6 +23,16 @@ MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
                   "K-Means": "mlexchange/k-means-dc",
                 }
 
+# Dataset options
+DATA_OPTION=[
+    {'label': 'Bead Experimental', 'value': 'data/bead_pack.tif'},
+    {'label': 'Bead Simulated', 'value': 'data/bead_pack_artifacts.tif'},
+#     {'label': 'Castle Simulated', 'value': 'data/castle_artifacts.tif'},
+#     {'label': 'Gambier Simulated', 'value': 'data/Gambier_artifacts.tif'},
+    {'label': 'LRC32 Simulated', 'value': 'data/lrc32_artifacts.tif'}
+]
+
+
 
 ### AUTHENTICAION ###
 VALID_USERNAME_PASSWORD_PAIRS = {
@@ -31,13 +42,16 @@ VALID_USERNAME_PASSWORD_PAIRS = {
 #### SETUP DASH APP ####
 external_stylesheets = [dbc.themes.BOOTSTRAP, "../assets/segmentation-style.css"]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, suppress_callback_exceptions=True)
-auth = dash_auth.BasicAuth(
-        app,
-        VALID_USERNAME_PASSWORD_PAIRS,
-        )
+# auth = dash_auth.BasicAuth(
+#         app,
+#         VALID_USERNAME_PASSWORD_PAIRS,
+#         )
 
 server = app.server
 app.title = "MLExchange Labeling | Image Segmentation"
+
+UPLOAD_FOLDER_ROOT = "data/upload"
+du.configure_upload(app, UPLOAD_FOLDER_ROOT, use_upload_id=False)
 
 ### BEGIN DASH CODE ###
 header = templates.header()
@@ -106,17 +120,17 @@ segmentation = [
         children=[
             dbc.CardHeader(
                 [
-                    dbc.Label('Choose Dataset', className='mr-2'),
+                    du.Upload(
+                        id="dash-uploader",
+                        max_file_size=1800,  # 1800 Mb
+                        cancel_button=True,
+                        pause_button=True
+                    ),
+                    dbc.Label('Then Choose Dataset', className='mr-2'),
                     dcc.Dropdown(
                         id='dataset-selection',
-                        options=[
-                            {'label': 'Bead Experimental', 'value': 'data/bead_pack.tif'},
-                            {'label': 'Bead Simulated', 'value': 'data/bead_pack_artifacts.tif'},
-                            {'label': 'Castle Simulated', 'value': 'data/castle_artifacts.tif'},
-                            {'label': 'Gambier Simulated', 'value': 'data/Gambier_artifacts.tif'},
-                            {'label': 'LRC32 Simulated', 'value': 'data/lrc32_artifacts.tif'}
-                        ],
-                        value = 'data/bead_pack.tif',
+                        options=DATA_OPTION,
+                        value = DATA_OPTION[0]['value'],
                         clearable=False,
                         style={'margin-bottom': '1rem'}
                     ),
@@ -388,8 +402,10 @@ meta = [
             dcc.Store(id='current-image-num', data=0),
             dcc.Store(id='image-store', data={}),
             dcc.Store(id='train_counter', data=0),
-            dcc.Store(id='seg_counter', data=0),
+            dcc.Store(id='seg-counter', data=0),
             dcc.Store(id='image-length', data=0),
+            dcc.Store(id='uploader-filename', data=[]),
+            dcc.Store(id='dataset-options', data=DATA_OPTION),
         ],
     )
 ]
