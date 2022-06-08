@@ -95,6 +95,7 @@ def update_figure(image_slider_value, any_label_class_button_value, \
                   show_segmentation_value, image_store_data, stroke_width, row, dataset,\
                   masks_data, uploader_filename, job_data):
     # read any shapes stored in browser associated with current slice
+    print(f'masks_data {masks_data}')
     shapes = masks_data.get(str(image_slider_value))
     # find label class value by finding button with the most recent click
     if any_label_class_button_value is None:
@@ -269,6 +270,7 @@ def show_message(dataset, show_segmentation_value, row, n_clicks1, n_clicks2, jo
 
 @app.callback(
     Output('masks', 'data'),
+    Output('graph', 'relayoutData'),
     Input('del-mask', 'n_clicks'),
     Input('graph', 'relayoutData'),
     Input('masks', 'data'),
@@ -294,8 +296,8 @@ def store_masks(n, graph_relayoutData, masks_data, image_slice):
                         shape_index = int(shape_index_re.match(key).group(1))
                         masks_data[str(image_slice)][shape_index]['path'] = graph_relayoutData[key]
             else:
-                return dash.no_update
-    return masks_data
+                return dash.no_update, dash.no_update
+    return masks_data, dash.no_update
 
 
 class mask_tasks():
