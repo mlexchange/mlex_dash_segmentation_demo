@@ -116,7 +116,7 @@ def make_default_figure(image_index, np_volume, shapes=[], stroke_color=class_la
             'shapes': shapes,
             'newshape.line.color': stroke_color,
             'newshape.line.width': stroke_width,
-            'margin': {'l': 0, 'r': 0, 't': 0, 'b': 0},
+            'margin': {'l': 0, 'r': 0, 't': 0, 'b': 0}
         }
     )
     fig.update_xaxes(

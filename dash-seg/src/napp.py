@@ -91,9 +91,11 @@ def image_upload(iscompleted, dataset, upload_filename, upload_id, dataset_optio
     Input('uploader-filename', 'data'),
     State('jobs_table', 'data')
 )
-def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, image_store_data,
-                  stroke_width, row, dataset, masks_data, uploader_filename, job_data):
+def update_figure(image_slider_value, any_label_class_button_value, \
+                  show_segmentation_value, image_store_data, stroke_width, row, dataset,\
+                  masks_data, uploader_filename, job_data):
     # read any shapes stored in browser associated with current slice
+    print(f'masks_data {masks_data}')
     shapes = masks_data.get(str(image_slider_value))
     # find label class value by finding button with the most recent click
     if any_label_class_button_value is None:
@@ -175,7 +177,8 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                     )
                 )
                 im.update_layout(template='plotly_white')
-               
+                im.update_layout(uirevision=dataset)
+                
                 return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max+1]
 
     print(f'uploader_filename {uploader_filename}')
@@ -190,7 +193,8 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
     im = helper_utils.make_default_figure(image_slider_value, np_volume, shapes,
                                           stroke_color=helper_utils.class_to_color(label_class_value),
                                           stroke_width=stroke_width,
-                                              image_cache=im_cache)
+                                          image_cache=im_cache)
+    im.update_layout(uirevision=dataset)
     
     return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max+1]
 
