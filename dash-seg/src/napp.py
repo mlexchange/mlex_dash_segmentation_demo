@@ -73,13 +73,11 @@ def image_upload(iscompleted, dataset, upload_filename, upload_id, dataset_optio
 @app.callback(
     [
         Output("graph", "figure"),
-        #Output('graph', 'relayoutData'),
         Output('image-slider', 'max'),
         Output("image-slider", "value"),
         Output("image-slider", "marks"),
         Output("image-length", "data"),
     ],
-    Input('graph', 'relayoutData'),
     Input("image-slider", "value"),
     Input({'type': "label-class-button", "index": dash.dependencies.ALL},
           "n_clicks_timestamp",
@@ -93,7 +91,7 @@ def image_upload(iscompleted, dataset, upload_filename, upload_id, dataset_optio
     Input('uploader-filename', 'data'),
     State('jobs_table', 'data')
 )
-def update_figure(relayout_data, image_slider_value, any_label_class_button_value, \
+def update_figure(image_slider_value, any_label_class_button_value, \
                   show_segmentation_value, image_store_data, stroke_width, row, dataset,\
                   masks_data, uploader_filename, job_data):
     # read any shapes stored in browser associated with current slice
@@ -271,7 +269,6 @@ def show_message(dataset, show_segmentation_value, row, n_clicks1, n_clicks2, jo
 
 @app.callback(
     Output('masks', 'data'),
-    #Output('graph', 'relayoutData'),
     Input('del-mask', 'n_clicks'),
     Input('graph', 'relayoutData'),
     Input('masks', 'data'),
@@ -297,8 +294,8 @@ def store_masks(n, graph_relayoutData, masks_data, image_slice):
                         shape_index = int(shape_index_re.match(key).group(1))
                         masks_data[str(image_slice)][shape_index]['path'] = graph_relayoutData[key]
             else:
-                return dash.no_update#, dash.no_update
-    return masks_data#, dash.no_update
+                return dash.no_update
+    return masks_data
 
 
 class mask_tasks():
