@@ -73,11 +73,13 @@ def image_upload(iscompleted, dataset, upload_filename, upload_id, dataset_optio
 @app.callback(
     [
         Output("graph", "figure"),
+        #Output('graph', 'relayoutData'),
         Output('image-slider', 'max'),
         Output("image-slider", "value"),
         Output("image-slider", "marks"),
         Output("image-length", "data"),
     ],
+    Input('graph', 'relayoutData'),
     Input("image-slider", "value"),
     Input({'type': "label-class-button", "index": dash.dependencies.ALL},
           "n_clicks_timestamp",
@@ -91,8 +93,9 @@ def image_upload(iscompleted, dataset, upload_filename, upload_id, dataset_optio
     Input('uploader-filename', 'data'),
     State('jobs_table', 'data')
 )
-def update_figure(image_slider_value, any_label_class_button_value, show_segmentation_value, image_store_data,
-                  stroke_width, row, dataset, masks_data, uploader_filename, job_data):
+def update_figure(relayout_data, image_slider_value, any_label_class_button_value, \
+                  show_segmentation_value, image_store_data, stroke_width, row, dataset,\
+                  masks_data, uploader_filename, job_data):
     # read any shapes stored in browser associated with current slice
     shapes = masks_data.get(str(image_slider_value))
     # find label class value by finding button with the most recent click
@@ -175,7 +178,8 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
                     )
                 )
                 im.update_layout(template='plotly_white')
-               
+                im.update_layout(uirevision=dataset)
+                
                 return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max+1]
 
     print(f'uploader_filename {uploader_filename}')
@@ -190,7 +194,8 @@ def update_figure(image_slider_value, any_label_class_button_value, show_segment
     im = helper_utils.make_default_figure(image_slider_value, np_volume, shapes,
                                           stroke_color=helper_utils.class_to_color(label_class_value),
                                           stroke_width=stroke_width,
-                                              image_cache=im_cache)
+                                          image_cache=im_cache)
+    im.update_layout(uirevision=dataset)
     
     return [im, image_slider_max, image_slider_value, slider_style(image_slider_max), image_slider_max+1]
 
@@ -266,7 +271,7 @@ def show_message(dataset, show_segmentation_value, row, n_clicks1, n_clicks2, jo
 
 @app.callback(
     Output('masks', 'data'),
-    Output('graph', 'relayoutData'),
+    #Output('graph', 'relayoutData'),
     Input('del-mask', 'n_clicks'),
     Input('graph', 'relayoutData'),
     Input('masks', 'data'),
@@ -292,8 +297,8 @@ def store_masks(n, graph_relayoutData, masks_data, image_slice):
                         shape_index = int(shape_index_re.match(key).group(1))
                         masks_data[str(image_slice)][shape_index]['path'] = graph_relayoutData[key]
             else:
-                return dash.no_update, dash.no_update
-    return masks_data, dash.no_update
+                return dash.no_update#, dash.no_update
+    return masks_data#, dash.no_update
 
 
 class mask_tasks():
