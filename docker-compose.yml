@@ -15,7 +15,7 @@ services:
       - ./dash-seg/data:/app/work/data
       - ./dash-seg/src:/app/work/src
     ports:
-      - "8052:8050"
+      - "8052:8052"
     networks:
       - computing_api_default
 
