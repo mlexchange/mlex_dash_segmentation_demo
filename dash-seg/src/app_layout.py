@@ -25,13 +25,12 @@ MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
 
 # Dataset options
 DATA_OPTION=[
-    {'label': 'Bead Experimental', 'value': 'data/bead_pack.tif'},
-    {'label': 'Bead Simulated', 'value': 'data/bead_pack_artifacts.tif'},
+    {'label': 'Bead pack (MD simulation by Dani Ushizima)', 'value': 'data/bead_pack.tif'},
+#     {'label': 'Bead Simulated', 'value': 'data/bead_pack_artifacts.tif'},
 #     {'label': 'Castle Simulated', 'value': 'data/castle_artifacts.tif'},
 #     {'label': 'Gambier Simulated', 'value': 'data/Gambier_artifacts.tif'},
-    {'label': 'LRC32 Simulated', 'value': 'data/lrc32_artifacts.tif'}
+#     {'label': 'LRC32 Simulated', 'value': 'data/lrc32_artifacts.tif'}
 ]
-
 
 
 ### AUTHENTICAION ###
