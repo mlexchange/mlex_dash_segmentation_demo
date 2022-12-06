@@ -4,7 +4,6 @@ services:
   front-end:
     restart: "unless-stopped"
     container_name: "fronty"
-    user: "${UID}:${GID}"
     build:
       context: "dash-seg/"
       dockerfile: "docker/Dockerfile"
@@ -15,7 +14,7 @@ services:
       - ./dash-seg/data:/app/work/data
       - ./dash-seg/src:/app/work/src
     ports:
-      - "8052:8050"
+      - "8052:8052"
     networks:
       - computing_api_default
 
