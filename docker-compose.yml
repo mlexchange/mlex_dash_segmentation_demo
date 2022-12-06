@@ -4,7 +4,6 @@ services:
   front-end:
     restart: "unless-stopped"
     container_name: "fronty"
-    user: "${UID}:${GID}"
     build:
       context: "dash-seg/"
       dockerfile: "docker/Dockerfile"
