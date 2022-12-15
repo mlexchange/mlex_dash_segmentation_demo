@@ -15,7 +15,7 @@ import numpy as np
 SEG_FEATURE_TYPES = ["intensity", "edges", "texture"]
 NUM_LABEL_CLASSES = 5
 class_labels = list(range(NUM_LABEL_CLASSES))
-np_volume = helper_utils.dcm_to_np('data/bead_pack.tif')
+np_volume = helper_utils.dcm_to_np('default_dataset/bead_pack.tif')
 DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 # hardcoded model database as dict
 MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
@@ -25,7 +25,7 @@ MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
 
 # Dataset options
 DATA_OPTION=[
-    {'label': 'Bead pack (MD simulation by Dani Ushizima)', 'value': 'data/bead_pack.tif'},
+    {'label': 'Bead pack (MD simulation by Dani Ushizima)', 'value': 'default_dataset/bead_pack.tif'},
 #     {'label': 'Bead Simulated', 'value': 'data/bead_pack_artifacts.tif'},
 #     {'label': 'Castle Simulated', 'value': 'data/castle_artifacts.tif'},
 #     {'label': 'Gambier Simulated', 'value': 'data/Gambier_artifacts.tif'},
