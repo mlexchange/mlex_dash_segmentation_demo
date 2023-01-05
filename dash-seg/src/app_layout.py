@@ -59,6 +59,13 @@ header = templates.header()
 job_status_display = [
     html.Div(
         children=[
+            dbc.Button("Download Job Data", 
+                id="download-data", 
+                # className="ms-auto", 
+                n_clicks=0,
+                style={'margin-top': '-1rem', 'margin-bottom': '0.25rem'},
+            ),
+            dcc.Download(id="download-zip"),
             dash_table.DataTable(
                 id='jobs_table',
                 columns=[
