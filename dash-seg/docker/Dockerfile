@@ -20,6 +20,7 @@ EXPOSE 8000
 WORKDIR /app/work
 ENV HOME /app/work
 COPY src src
+COPY default_dataset default_dataset 
 ENV PYTHONUNBUFFERED=1
 
 CMD ["bash"]

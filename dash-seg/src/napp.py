@@ -6,6 +6,7 @@ import re
 import json
 import base64
 import copy
+import shutil
 
 import dash
 import dash_bootstrap_components as dbc
@@ -589,7 +590,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
     masks_data = {k:v for (k,v) in masks_data.items() if bool(v)}
     image_index_with_mask = list(masks_data.keys()) #slice index that is labeled
     if seg_dropdown_value == 'K-Means':
-         if bool(image_index_with_mask):
+         if image_index_with_mask:
              for im_index in image_index_with_mask:
                  im = np_volume[int(im_index)]
                  imageio.imsave(IM_TRAINING_DIR / '{}_for_training.tif'.format(im_index), im)
@@ -600,7 +601,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
 
     else:
         im_shape_list = []
-        if len(image_store_data) > 0:
+        if image_store_data:
             for im_index in image_index_with_mask:
                 im_str = image_store_data[list(image_store_data.keys())[int(im_index)]][1]
                 im_decode = base64.b64decode(im_str)
@@ -626,7 +627,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
     feature_dir_docker = str(FEATURE_DIR)
     
     input_params = {}
-    if bool(children):
+    if children:
         for child in children['props']['children']:
             key   = child["props"]["children"][1]["props"]["id"]["param_key"]
             value = child["props"]["children"][1]["props"]["value"]
@@ -722,7 +723,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
     if counts == 0:
         counts = helper_utils.init_counters(USER, 'deploy')
 
-    if bool(upload_filename):
+    if upload_filename:
         dataset = upload_filename[0]
     np_volume = helper_utils.dcm_to_np(dataset)
     # find most recent job id (current experiment)
@@ -809,6 +810,24 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
     counts += 1
     print('sending images to server to be segmented')
     return ['', counts]
+
+
+@app.callback(
+    Output("download-zip", 'data'),
+    Input("download-data", "n_clicks"),
+    State('jobs_table', 'selected_rows'),
+    State('jobs_table', 'data'),
+    prevent_initial_call=True
+)
+def download(n_clicks, row, job_data):
+    if row:
+        data = job_data[row[0]]
+    
+    experiment_id = job_data[row[0]]["experiment_id"]
+    data_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER, experiment_id))
+    shutil.make_archive(data_path, 'zip', data_path)
+    zip_file_name = str(data_path)+".zip"
+    return dcc.send_file(zip_file_name)
 
 
 if __name__ == "__main__":
