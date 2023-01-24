@@ -1,5 +1,11 @@
 # Segmentation demo v2.0.0
 
+This is the version trying to implement long callbacks for large data download.
+
+**Issue**.    
+1. targeted\_callback does not work with Dash 2.   
+2. dash.no\_update is not JSON serializable for flash caching (needed for Dash long callback). 
+
 The first version of the image segmentation demo integrated with the model registry and the compute sevice manager.  
 To run this demo, `docker-compose` the followings (in the order):  
 -	mlex\_api: b384722  
