@@ -9,11 +9,10 @@ import copy
 import shutil
 
 import dash
+from dash import Dash, callback, html, dcc, dash_table, Input, Output, State, MATCH, ALL
 import dash_bootstrap_components as dbc
-import dash_core_components as dcc
-
-from dash.dependencies import Input, Output, State, MATCH, ALL
 from dash.exceptions import PreventUpdate
+
 import imageio
 from flask import request
 import numpy as np
@@ -812,21 +811,23 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
     return ['', counts]
 
 
-@app.callback(
-    Output("download-zip", 'data'),
-    Input("download-data", "n_clicks"),
-    State('jobs_table', 'selected_rows'),
-    State('jobs_table', 'data'),
+@app.long_callback(
+    output=Output("download-zip", "data"),
+    inputs=(Input("download-data", "n_clicks"),
+            State('jobs_table', 'selected_rows'),
+            State('jobs_table', 'data'),
+    ),
     prevent_initial_call=True
 )
 def download(n_clicks, row, job_data):
     if row:
         data = job_data[row[0]]
-    
+
     experiment_id = job_data[row[0]]["experiment_id"]
     data_path = pathlib.Path('data/mlexchange_store/{}/{}'.format(USER, experiment_id))
     shutil.make_archive(data_path, 'zip', data_path)
     zip_file_name = str(data_path)+".zip"
+    
     return dcc.send_file(zip_file_name)
 
 

@@ -1,10 +1,12 @@
 import dash
+from dash import Dash, html, dcc, dash_table
+#import dash
 import dash_bootstrap_components as dbc
-import dash_html_components as html
-import dash_core_components as dcc
 import dash_auth
-import dash_table
 import dash_uploader as du
+from dash.long_callback import DiskcacheLongCallbackManager
+## Diskcache
+import diskcache
 ##### HELPER UTILS
 import helper_utils
 ##### TEMPLATE MODULES
@@ -39,8 +41,15 @@ VALID_USERNAME_PASSWORD_PAIRS = {
         }
 
 #### SETUP DASH APP ####
+cache = diskcache.Cache("./cache")
+long_callback_manager = DiskcacheLongCallbackManager(cache)
+
 external_stylesheets = [dbc.themes.BOOTSTRAP, "../assets/segmentation-style.css"]
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets, suppress_callback_exceptions=True)
+app = Dash(__name__, 
+            external_stylesheets=external_stylesheets, 
+            suppress_callback_exceptions=True, 
+            long_callback_manager=long_callback_manager
+)
 # auth = dash_auth.BasicAuth(
 #         app,
 #         VALID_USERNAME_PASSWORD_PAIRS,
@@ -65,6 +74,7 @@ job_status_display = [
                 n_clicks=0,
                 style={'margin-top': '-1rem', 'margin-bottom': '0.25rem'},
             ),
+            #html.Progress(id="download-progress-bar"),
             dcc.Download(id="download-zip"),
             dash_table.DataTable(
                 id='jobs_table',
