@@ -41,10 +41,10 @@ DATA_OPTION=[
 #### SETUP DASH APP ####
 external_stylesheets = [dbc.themes.BOOTSTRAP, "../assets/segmentation-style.css"]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, suppress_callback_exceptions=True)
-auth = dash_auth.BasicAuth(
-        app,
-        VALID_USERNAME_PASSWORD_PAIRS,
-        )
+#auth = dash_auth.BasicAuth(
+#        app,
+#        VALID_USERNAME_PASSWORD_PAIRS,
+#        )
 
 server = app.server
 app.title = "MLExchange Labeling | Image Segmentation"
