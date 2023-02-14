@@ -34,9 +34,9 @@ DATA_OPTION=[
 
 
 ### AUTHENTICAION ###
-VALID_USERNAME_PASSWORD_PAIRS = {
-        'mlex_dev': 'seg@als.lbnl'
-        }
+#VALID_USERNAME_PASSWORD_PAIRS = {
+#        'placeholder': 'placeholder'
+#        }
 
 #### SETUP DASH APP ####
 external_stylesheets = [dbc.themes.BOOTSTRAP, "../assets/segmentation-style.css"]
