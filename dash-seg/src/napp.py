@@ -142,7 +142,7 @@ def update_figure(image_slider_value, any_label_class_button_value, \
                         semi = imageio.imread(
                             'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
                                                                                        image_slider_value))
-                    elif model_name == "pyMSDtorch":
+                    elif model_name.startswith("DLSIA"):
                         semi = imageio.imread(
                             'data/mlexchange_store/{}/{}/out/{}-classified.tif'.format(USER_NAME, job_id,
                                                                                        image_slider_value))
@@ -464,10 +464,14 @@ def additional_model_features(seg_dropdown_value):
     
     if seg_dropdown_value == 'Random Forest':
         conditions = {'name': 'random_forest'}
-    elif seg_dropdown_value == 'pyMSDtorch':
-        conditions = {'name': 'pyMSDtorch'}
     elif seg_dropdown_value == 'K-Means':
         conditions = {'name': 'kmeans'}
+    elif seg_dropdown_value == 'DLSIA: MSDNet':
+        conditions = {'name': 'dlsia_msdnet'}
+    elif seg_dropdown_value == 'DLSIA: TUNet':
+        conditions = {'name': 'dlsia_tunet'}
+    elif seg_dropdown_value == 'DLSIA: TUNet3+':
+        conditions = {'name': 'dlsia_tunet3plus'}
     
     if bool(conditions):
         model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
@@ -660,7 +664,7 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
     if seg_dropdown_value == 'Random Forest':
         cmd_list = ["python random_forest.py", images_dir_docker, feature_dir_docker, mask_dir_docker, model_dir_docker]
 
-    elif seg_dropdown_value == "pyMSDtorch":
+    elif seg_dropdown_value.startswith("DLSIA"):
         cmd_list = ["python src/train.py", mask_dir_docker, images_dir_docker, model_dir_docker]
 
     elif seg_dropdown_value == "K-Means":
@@ -793,7 +797,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
         model_input_dir_dock = MODEL_INPUT_DIR / 'random-forest.model'
         cmd_list = ["python segment.py", im_input_dir_dock, str(model_input_dir_dock), out_dir_dock]
 
-    elif model_name == "pyMSDtorch":
+    elif model_name.startswith("dlsia"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
         cmd_list = ["python src/segment.py", im_input_dir_dock, str(model_input_dir_dock), out_dir_dock]
 

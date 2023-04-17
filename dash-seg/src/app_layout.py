@@ -9,7 +9,6 @@ import dash_uploader as du
 import helper_utils
 ##### TEMPLATE MODULES
 import templates
-import numpy as np
 
 ### GLOBAL VARIABLES
 SEG_FEATURE_TYPES = ["intensity", "edges", "texture"]
@@ -19,32 +18,21 @@ np_volume = helper_utils.dcm_to_np('default_dataset/bead_pack.tif')
 DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 # hardcoded model database as dict
 MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
-                  "pyMSDtorch": "mlexchange/msdnetwork-notebook",
+                  #"pyMSDtorch": "mlexchange/msdnetwork-notebook", # Delete after successful testing of dlsia
                   "K-Means": "mlexchange/k-means-dc",
+                  "DLSIA: MSDNet": "mlexchange/dlsia",
+                  "DLSIA: TUNet": "mlexchange/dlsia",
+                  "DLSIA: TUNet3+": "mlexchange/dlsia",
                 }
 
 # Dataset options
 DATA_OPTION=[
     {'label': 'Bead pack (MD simulation by Dani Ushizima)', 'value': 'default_dataset/bead_pack.tif'},
-#     {'label': 'Bead Simulated', 'value': 'data/bead_pack_artifacts.tif'},
-#     {'label': 'Castle Simulated', 'value': 'data/castle_artifacts.tif'},
-#     {'label': 'Gambier Simulated', 'value': 'data/Gambier_artifacts.tif'},
-#     {'label': 'LRC32 Simulated', 'value': 'data/lrc32_artifacts.tif'}
-]
-
-
-### AUTHENTICAION ###
-VALID_USERNAME_PASSWORD_PAIRS = {
-        'mlex_dev': 'seg@als.lbnl'
-        }
+    ]
 
 #### SETUP DASH APP ####
 external_stylesheets = [dbc.themes.BOOTSTRAP, "../assets/segmentation-style.css"]
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, suppress_callback_exceptions=True)
-auth = dash_auth.BasicAuth(
-        app,
-        VALID_USERNAME_PASSWORD_PAIRS,
-        )
 
 server = app.server
 app.title = "MLExchange Labeling | Image Segmentation"
