@@ -20,9 +20,9 @@ DEFAULT_STROKE_WIDTH = 3  # gives line width of 2^3 = 8
 MODEL_DATABASE = {"Random Forest": "mlexchange/random-forest-dc",
                   #"pyMSDtorch": "mlexchange/msdnetwork-notebook", # Delete after successful testing of dlsia
                   "K-Means": "mlexchange/k-means-dc",
-                  "DLSIA: MSDNet": "mlexchange/dlsia",
-                  "DLSIA: TUNet": "mlexchange/dlsia",
-                  "DLSIA: TUNet3+": "mlexchange/dlsia",
+                  "DLSIA: MSDNet": "mlexchange1/dlsia",
+                  "DLSIA: TUNet": "mlexchange1/dlsia",
+                  "DLSIA: TUNet3+": "mlexchange1/dlsia",
                 }
 
 # Dataset options

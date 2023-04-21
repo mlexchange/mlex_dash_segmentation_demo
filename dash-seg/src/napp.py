@@ -467,14 +467,15 @@ def additional_model_features(seg_dropdown_value):
     elif seg_dropdown_value == 'K-Means':
         conditions = {'name': 'kmeans'}
     elif seg_dropdown_value == 'DLSIA: MSDNet':
-        conditions = {'name': 'dlsia_msdnet'}
+        conditions = {'name': 'DLSIA-MSDNet'}
     elif seg_dropdown_value == 'DLSIA: TUNet':
-        conditions = {'name': 'dlsia_tunet'}
+        conditions = {'name': 'DLSIA-TUNet'}
     elif seg_dropdown_value == 'DLSIA: TUNet3+':
-        conditions = {'name': 'dlsia_tunet3plus'}
+        conditions = {'name': 'DLSIA-TUNet3+'}
     
     if bool(conditions):
         model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
+        print(f'model is {model}')
         model_uid = model[0]["content_id"]
         model_source = [dbc.Label('Model Source', className='mr-2'),
                         dcc.Textarea(id='msg-display',
@@ -484,7 +485,7 @@ def additional_model_features(seg_dropdown_value):
                         ]
                         
         gui_item = JSONParameterEditor(_id={'type': 'parameter_editor'},  # pattern match _id (base id), name
-                                   json_blob=model[0]["gui_parameters"],
+                                       json_blob=helper_utils.remove_key_from_dict_list(model[0]["gui_parameters"], "comp_group"),
                                    )
         gui_item.init_callbacks(app)
     
