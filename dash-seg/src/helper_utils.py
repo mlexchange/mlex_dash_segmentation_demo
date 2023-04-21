@@ -7,6 +7,7 @@ else:
     from io import StringIO
 
 import base64
+from copy import deepcopy
 import imageio
 import numpy as np
 import pandas as pd
@@ -21,6 +22,18 @@ RGB_colormap = [(230,159,0), (143,0,255), (86,180,233), (0,158,115), (240,228,66
 
 
 #### HELPER UTILS
+def remove_key_from_dict_list(data, key):
+    new_data = []
+    for item in data:
+        if key in item:
+            new_item = deepcopy(item)
+            new_item.pop(key)
+            new_data.append(new_item)
+        else:
+            new_data.append(item)
+    
+    return new_data
+
 def dcm_to_np(dir_path):
     np_volume = imageio.volread(dir_path)
     # np_volume = imageio.volread("imageio:stent.npz")
