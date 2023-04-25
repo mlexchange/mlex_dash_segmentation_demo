@@ -26,13 +26,13 @@ def filter_key_from_dict_list(data, key, value):
     '''
     whitelist filter items according to a key value
     '''
-    new_data = deepcopy(data)
-    for item in new_data:
+    res = []
+    for item in data:
         if key in item:
-            if item[key] != value:
-                new_data.remove(item)
+            if item[key] == value:
+                res.append(item)
     
-    return new_data
+    return res
 
 
 def remove_key_from_dict_list(data, key):
