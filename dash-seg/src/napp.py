@@ -475,10 +475,8 @@ def additional_model_features(seg_dropdown_value):
     
     if bool(conditions):
         model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
-        gui_params = copy.deepcopy(model[0]["gui_parameters"])
         if seg_dropdown_value == 'DLSIA: MSDNet':
-            gui_params = helper_utils.filter_key_from_dict_list(gui_params, "comp_group", 'all')
-        print(f'model is {model}')
+            model[0]["gui_parameters"] = helper_utils.filter_key_from_dict_list(model[0]["gui_parameters"], "comp_group", 'secondary')
         model_uid = model[0]["content_id"]
         model_source = [dbc.Label('Model Source', className='mr-2'),
                         dcc.Textarea(id='msg-display',
@@ -488,7 +486,7 @@ def additional_model_features(seg_dropdown_value):
                         ]
                         
         gui_item = JSONParameterEditor(_id={'type': 'parameter_editor'},  # pattern match _id (base id), name
-                                       json_blob=helper_utils.remove_key_from_dict_list(gui_params, "comp_group"),
+                                       json_blob=helper_utils.remove_key_from_dict_list(model[0]["gui_parameters"], "comp_group"),
                                    )
         gui_item.init_callbacks(app)
     
