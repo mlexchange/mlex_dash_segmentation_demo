@@ -22,7 +22,22 @@ RGB_colormap = [(230,159,0), (143,0,255), (86,180,233), (0,158,115), (240,228,66
 
 
 #### HELPER UTILS
+def filter_key_from_dict_list(data, key, value):
+    '''
+    whitelist filter items according to a key value
+    '''
+    for item in data:
+        if key in item:
+            if item[key] != value:
+                data.remove(item)
+    
+    return data
+
+
 def remove_key_from_dict_list(data, key):
+    '''
+    Remove a key-value pair from the every item
+    '''
     new_data = []
     for item in data:
         if key in item:
