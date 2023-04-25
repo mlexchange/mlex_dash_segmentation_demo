@@ -26,10 +26,11 @@ def filter_key_from_dict_list(data, key, value):
     '''
     whitelist filter items according to a key value
     '''
+    new_data = []
     for item in data:
         if key in item:
-            if item[key] != value:
-                data.remove(item)
+            if item[key] == value:
+                new_data.append(item)
     
     return data
 
