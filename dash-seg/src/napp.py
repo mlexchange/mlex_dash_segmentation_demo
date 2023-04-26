@@ -475,8 +475,6 @@ def additional_model_features(seg_dropdown_value):
     
     if bool(conditions):
         model = [d for d in data if all((k in d and d[k] == v) for k, v in conditions.items())]
-        if seg_dropdown_value == 'DLSIA: MSDNet':
-            model[0]["gui_parameters"] = helper_utils.filter_key_from_dict_list(model[0]["gui_parameters"], "comp_group", 'secondary')
         model_uid = model[0]["content_id"]
         model_source = [dbc.Label('Model Source', className='mr-2'),
                         dcc.Textarea(id='msg-display',
