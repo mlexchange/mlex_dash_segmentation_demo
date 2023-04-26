@@ -502,12 +502,13 @@ def get_content(uid: str):
 
 
 def job_content_dict(content):
+    cmd = content['cmd'][0] if content['cmd'] else ''
     job_content = {# 'mlex_app': content['name'],
                    'mlex_app': 'seg-demo',
                    'service_type': content['service_type'],
                    'working_directory': DATA_DIR,
                    'job_kwargs': {'uri': content['uri'], 
-                                  'cmd': content['cmd'][0]}
+                                  'cmd': cmd}
     }
     if 'map' in content:
         job_content['job_kwargs']['map'] = content['map']
@@ -635,8 +636,10 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
         for child in children['props']['children']:
             key   = child["props"]["children"][1]["props"]["id"]["param_key"]
             value = child["props"]["children"][1]["props"]["value"]
+            if key == 'dilation_array':
+                value = [int(v) for v in value.split(",")]
             input_params[key] = value
-
+    
     model_content = get_content(model_uid)
     job_content = job_content_dict(model_content)
 
