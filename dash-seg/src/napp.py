@@ -5,7 +5,6 @@ import pathlib
 import re
 import json
 import base64
-import copy
 import shutil
 
 import dash
