@@ -429,6 +429,7 @@ def update_table(n, row):
         log = data_table[row[0]]["job_logs"]
         if log:
             if ' '.join(job_type[0:-1]) == 'deploy':
+                print(f'log: {log}')
                 inside = log.split("classified\t")[-1]
                 print(f'inside float {inside}')
                 values = (int(float(log.split("classified\t")[-1]))+1)/data_table[row[0]]["image_length"]*100
@@ -632,12 +633,15 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
     
     input_params = {}
     if children:
+        if seg_dropdown_value.startswith("DLSIA"):
+            input_params['model'] = seg_dropdown_value[7:]
         for child in children['props']['children']:
             key   = child["props"]["children"][1]["props"]["id"]["param_key"]
             value = child["props"]["children"][1]["props"]["value"]
             if key == 'dilation_array':
                 value = [int(v) for v in value.split(",")]
             input_params[key] = value
+            print(f'input_params: {input_params}')
     
     model_content = get_content(model_uid)
     job_content = job_content_dict(model_content)
@@ -799,7 +803,7 @@ def compute_seg_react(compute_seg_n_clicks, image_store_data, counts, row, job_d
         model_input_dir_dock = MODEL_INPUT_DIR / 'random-forest.model'
         cmd_list = ["python segment.py", im_input_dir_dock, str(model_input_dir_dock), out_dir_dock]
 
-    elif model_name.startswith("dlsia"):
+    elif model_name.startswith("DLSIA"):
         model_input_dir_dock = MODEL_INPUT_DIR / 'state_dict_net.pt'
         cmd_list = ["python src/segment.py", im_input_dir_dock, str(model_input_dir_dock), out_dir_dock]
 
