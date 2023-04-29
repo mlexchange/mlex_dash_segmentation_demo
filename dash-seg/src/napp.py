@@ -429,7 +429,6 @@ def update_table(n, row):
         log = data_table[row[0]]["job_logs"]
         if log:
             if ' '.join(job_type[0:-1]) == 'deploy':
-                print(f'log: {log}')
                 inside = log.split("classified\t")[-1]
                 print(f'inside float {inside}')
                 values = (int(float(log.split("classified\t")[-1]))+1)/data_table[row[0]]["image_length"]*100
@@ -641,7 +640,6 @@ def train_segmentation(train_seg_n_clicks, masks_data, counts, seg_dropdown_valu
             if key == 'dilation_array':
                 value = [int(v) for v in value.split(",")]
             input_params[key] = value
-            print(f'input_params: {input_params}')
     
     model_content = get_content(model_uid)
     job_content = job_content_dict(model_content)
